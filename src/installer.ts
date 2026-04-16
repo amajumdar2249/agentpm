@@ -18,9 +18,8 @@ export class SkillInstaller {
   }
 
   public static async fetchRemoteSkill(skillName: string): Promise<string> {
-    // For demonstration, fetch a mock system prompt from a public raw github endpoint.
-    // In production, this would query a real registry index first.
-    const url = 'https://raw.githubusercontent.com/f/awesome-chatgpt-prompts/main/prompts.csv';
+    // For demonstration, fetch a real markdown system prompt from GitHub
+    const url = 'https://raw.githubusercontent.com/f/awesome-chatgpt-prompts/main/README.md';
     
     try {
       const response = await fetch(url);
@@ -32,8 +31,8 @@ export class SkillInstaller {
       // Enforce file size limit check using zod string validation length
       z.string().max(500000).parse(text); 
       
-      // Simulate taking the raw markdown
-      return text.substring(0, 1000); // Returning sample valid text based on the fetch
+      // Simulate taking the raw markdown body
+      return text.substring(0, 1500) + '\n\n[Content Truncated]'; 
     } catch (error) {
       throw new Error(`Registry connection failed: ${(error as Error).message}`);
     }
