@@ -1,57 +1,70 @@
-# 📦 agentpm
+# 🌌 AgentPM 
 
-> **The Package Manager for AI Agents.**
-> Securely discover, audit, and install AI skills and system prompts.
+<div align="center">
+  <h3><b>The Definitive Package Manager for Autonomous AI Environments</b></h3>
+  <p>Securely discover, audit, and orchestrate AI skills, system prompts, and toolsets.</p>
+</div>
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/amajumdar2249/agentpm/ci.yml?branch=main&style=flat-square)](https://github.com/amajumdar2249/agentpm/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
-[![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg?style=flat-square)](http://www.typescriptlang.org/)
+---
 
-## ❌ The Problem
-As AI-assisted IDEs (Claude Code, Cursor, Windsurf) take over, developers are manually copy-pasting system prompts, rules, and "skills" from random gists, blogs, and repos. There is **no standard way** to manage, version, or secure your AI's custom instructions. Even worse, blindly copying prompts leads to **Prompt Injection Vulnerabilities**.
+[![Build Status](https://img.shields.io/github/actions/workflow/status/amaju/agentpm/ci.yml?branch=main&style=for-the-badge&color=8A2BE2)](https://github.com/amaju/agentpm/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge&color=00C853)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg?style=for-the-badge)](http://www.typescriptlang.org/)
+[![Security: Sentinel](https://img.shields.io/badge/Security-Zero%20Trust-red?style=for-the-badge)](https://github.com/amaju/agentpm)
 
-## ✅ The Solution
-`agentpm` brings the `npm` experience to AI Agents. With a single command, you can install the best open-source AI skills directly into your `.agents/` or `.cursorrules` folders.
+## ❌ The Dark Age of Exchanging Prompts
+As AI-assisted engineering (via Claude Code, Cursor, Windsurf) accelerates, developers are reduced to manually copy-pasting system prompts, rules, and "skills" from fragmented gists and unprotected repositories. 
 
-Every skill installed via `agentpm` is **automatically audited** for prompt-injection attacks.
+There is **no standard architecture** to manage, version, or secure custom AI instructions. Even worse, blindly copying third-party prompts introduces catastrophic **Prompt Injection Vulnerabilities** into your agentic workspace.
+
+## 🌟 The Vanguard: AgentPM
+`AgentPM` brings the robust `npm` and `cargo` experience directly to AI Agents. It transforms scattered text files into a scalable, secure, and standardized ecosystem.
+
+Every skill installed via `AgentPM` passes through a **Zero-Trust Security Sandbox**, automatically audited for malicious payloads and prompt-injection attacks before they touch your environment.
 
 ```bash
-# Install a high-quality React optimization skill securely
+# 1. Initialize an AI-ready workspace
+$ agentpm init
+
+# 2. Securely install high-quality audited skills
 $ agentpm install @oss/react-expert
 
 🚀 Initializing install for skill: @oss/react-expert
-🔍 Scanning for prompt injections...
-✅ Skill audited: No malicious prompts found.
-📦 Successfully installed @oss/react-expert into .agents/skills/
+🔍 Scanning deep abstraction layers for prompt injections...
+✅ Skill audited: 0 malicious signatures found.
+📦 Successfully deployed @oss/react-expert into .agents/skills/
 ```
 
-## Features
-- **Instant Discovery**: Access the open-source registry of proven AI skills.
-- **Zero-Trust Security**: Built-in AST and heuristic scanners block malicious 'jailbreak' prompts.
-- **Cross-Platform**: Compatible with Claude Code `.agents`, Cursor `.cursorrules`, and Windsurf.
-- **Extensible**: Pure TypeScript architecture.
+## ✨ Extraordinary Features
 
-## 🚀 Getting Started
+- ⚡ **Instant Discovery**: Tap into the ultimate global registry of proven, production-grade AI skills and personas.
+- 🛡️ **Zero-Trust Security**: Proprietary AST and heuristic engines block hidden 'jailbreaks' and 'data exfiltration' attempts embedded into prompts.
+- 🏗️ **Agentic Workspaces (`agentpm init`)**: Instantly scaffold advanced `.agents` environments with structural integrity.
+- 🌐 **Platform Agnostic**: Flawlessly integrates with Claude Code (`.agents`), Cursor (`.cursorrules`), and Windsurf.
+- 💎 **Pure TypeScript**: Lightning fast execution with strict type guarantees across the entire lifecycle.
+
+## 🚀 Quick Start
 
 ### Installation
 ```bash
 npm install -g agentpm
 ```
 
-### Usage
+### Command Palette
+
 ```bash
-# Install a skill
+# Scaffold an optimized agentic workspace
+agentpm init
+
+# Securely install and audit a remote skill
 agentpm install <skill-name>
 
-# List installed skills
+# View your orchestrated local environment
 agentpm list
-
-# Audit all local skills for vulnerabilities
-agentpm audit
 ```
 
-## 🤝 Contributing
-We welcome contributions to expand the package manager ecosystem. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+## 🤝 Establish the Future
+We welcome extraordinary minds to expand the Neural Registry ecosystem. See [CONTRIBUTING.md](CONTRIBUTING.md) to shape the future of AI package management.
 
 ## 📄 License
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License - Developed with unparalleled focus. See [LICENSE](LICENSE) for details.
