@@ -8,6 +8,7 @@ import path from 'path';
 import { SecurityScanner } from './scanner';
 import { SkillInstaller } from './installer';
 import { SkillLinter } from './linter';
+import { SkillSearcher } from './search';
 
 const program = new Command();
 
@@ -91,7 +92,7 @@ program
 // 3. search command
 program
   .command('search')
-  .description('Search for agent skills in registry')
+  .description('Search for agent skills in registry using fuzzy matching')
   .argument('<query>', 'Search term')
   .action((query) => {
     const indexPath = path.join(__dirname, '..', 'registry', 'index.json');
@@ -106,18 +107,20 @@ program
       
       console.log(chalk.cyan(`🔎 Searching registry for: "${query}"...\n`));
       
-      const results = index.filter((pkg: any) => 
-        pkg.name.toLowerCase().includes(query.toLowerCase()) || 
-        pkg.description.toLowerCase().includes(query.toLowerCase()) ||
-        pkg.slug.toLowerCase().includes(query.toLowerCase())
-      );
+      const searcher = new SkillSearcher();
+      searcher.indexSkills(index);
+      const results = searcher.search(query);
 
       if (results.length === 0) {
         console.log(chalk.gray('No matching skills found in registry.'));
       } else {
         results.slice(0, 10).forEach((pkg: any) => {
-          console.log(chalk.green(`📦 ${chalk.bold(pkg.name)} (v${pkg.version})`));
+          const matchPercent = Math.min(Math.round(pkg.score * 10), 100);
+          console.log(chalk.green(`📦 ${chalk.bold(pkg.name)} (v${pkg.version}) `) + chalk.gray(`[Relevance: ${matchPercent}%]`));
           console.log(chalk.gray(`   Slug: ${pkg.slug}`));
+          if (pkg.tags && pkg.tags.length > 0) {
+            console.log(chalk.blue(`   Tags: ${pkg.tags.join(', ')}`));
+          }
           console.log(chalk.white(`   ${pkg.description}`));
           console.log();
         });
