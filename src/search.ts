@@ -30,16 +30,23 @@ export class SkillSearcher {
    * @param skills Array of skill definitions
    */
   public indexSkills(skills: any[]): void {
-    // MiniSearch requires an 'id' field on each document.
-    // If a skill doesn't have an 'id', we use the slug as the id.
-    const documents = skills.map((skill, index) => ({
-      id: skill.id || skill.slug || `skill-${index}`,
-      name: skill.name || '',
-      slug: skill.slug || '',
-      description: skill.description || '',
-      tags: Array.isArray(skill.tags) ? skill.tags : [],
-      version: skill.version || '1.0.0'
-    }));
+    const seen = new Set<string>();
+    const documents: any[] = [];
+
+    skills.forEach((skill, index) => {
+      const uniqueId = skill.id || skill.slug || `skill-${index}`;
+      if (!seen.has(uniqueId)) {
+        seen.add(uniqueId);
+        documents.push({
+          id: uniqueId,
+          name: skill.name || '',
+          slug: skill.slug || '',
+          description: skill.description || '',
+          tags: Array.isArray(skill.tags) ? skill.tags : [],
+          version: skill.version || '1.0.0'
+        });
+      }
+    });
 
     this.miniSearch.removeAll();
     this.miniSearch.addAll(documents);
