@@ -12,8 +12,9 @@ import fs from "fs";
 import path from "path";
 import { SecurityScanner } from "./scanner";
 import { SkillInstaller } from "./installer";
+import { SkillSearcher } from "./search";
 
-const server = new Server(
+export const server = new Server(
   {
     name: "agentpm-server",
     version: "1.1.0"
@@ -98,11 +99,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const raw = fs.readFileSync(indexPath, "utf8");
         const index = JSON.parse(raw);
         
-        const matches = index.filter((pkg: any) =>
-          pkg.name.toLowerCase().includes(query) ||
-          pkg.description.toLowerCase().includes(query) ||
-          pkg.slug.toLowerCase().includes(query)
-        );
+        const searcher = new SkillSearcher();
+        searcher.indexSkills(index);
+        const matches = searcher.search(query);
 
         const results = matches.slice(0, 5).map((pkg: any) => 
           `📦 Name: ${pkg.name} (slug: ${pkg.slug})\n   Description: ${pkg.description}`
