@@ -9,6 +9,7 @@ import { SecurityScanner } from './scanner';
 import { SkillInstaller } from './installer';
 import { SkillLinter } from './linter';
 import { SkillSearcher } from './search';
+import { BrowserUtils } from './utils/browser';
 
 const program = new Command();
 
@@ -184,7 +185,54 @@ program
     }
   });
 
-// 6. mcp command
+// 6. rate command
+program
+  .command('rate')
+  .description('Submit a rating and review for a skill via GitHub Issues')
+  .argument('<skillName>', 'Name or slug of the skill to rate')
+  .action(async (skillName) => {
+    const indexPath = path.join(__dirname, '..', 'registry', 'index.json');
+    if (!fs.existsSync(indexPath)) {
+      console.log(chalk.yellow('⚠️ Local registry index not found. Run search or seed first to cache it.'));
+      return;
+    }
+
+    try {
+      const raw = fs.readFileSync(indexPath, 'utf8');
+      const index = JSON.parse(raw);
+      const pkg = index.find((item: any) => 
+        item.slug.toLowerCase() === skillName.toLowerCase() || 
+        item.name.toLowerCase() === skillName.toLowerCase()
+      );
+
+      if (!pkg) {
+        console.log(chalk.red(`❌ Skill '${skillName}' not found in the registry.`));
+        console.log(chalk.gray(`Please check the spelling or search using: ${chalk.bold('agentpm search <query>')}`));
+        return;
+      }
+
+      console.log(chalk.cyan(`🚀 Opening GitHub Review portal for: ${chalk.bold(pkg.name)}...`));
+      
+      const title = `[Review] ${pkg.slug}`;
+      const body = `## 🌌 Review for ${pkg.name} (${pkg.slug})
+
+- **Rating:** 5/5 <!-- Please edit this: 1/5, 2/5, 3/5, 4/5, 5/5 -->
+- **Reviewer:** @your-username
+
+### ✍️ Review & Comments
+(Write your detailed comments and feedback here...)
+`;
+      const url = `https://github.com/amajumdar2249/agentpm-registry/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+
+      await BrowserUtils.open(url);
+      console.log(chalk.green('🌌 Browser window opened successfully!'));
+      console.log(chalk.gray(`If the browser did not open, visit: \n  ${url}`));
+    } catch (err) {
+      console.error(chalk.red(`Failed to trigger review: ${(err as Error).message}`));
+    }
+  });
+
+// 7. mcp command
 program
   .command('mcp')
   .description('Start the Model Context Protocol (MCP) server over stdio')
