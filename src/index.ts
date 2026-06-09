@@ -9,6 +9,7 @@ import { handleList } from './commands/list';
 import { handleValidate } from './commands/validate';
 import { handleRate } from './commands/rate';
 import { handleRun } from './commands/run';
+import { handleGenerate } from './commands/generate';
 
 const program = new Command();
 const ctx = defaultContext;
@@ -66,7 +67,15 @@ program
   .argument('<skillName>', 'Name or slug of the skill to execute')
   .action((skillName) => handleRun(ctx, skillName));
 
-// 8. mcp command
+// 8. generate command
+program
+  .command('generate')
+  .description('Generate a new AI skill playbook using offline templates or Gemini')
+  .argument('<skillName>', 'Name of the skill to generate')
+  .argument('[prompt]', 'Goal or description of what the skill does')
+  .action((skillName, prompt) => handleGenerate(ctx, skillName, prompt));
+
+// 9. mcp command
 program
   .command('mcp')
   .description('Start the Model Context Protocol (MCP) server over stdio')
