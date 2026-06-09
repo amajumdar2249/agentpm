@@ -13,6 +13,8 @@ import path from "path";
 import { SecurityScanner } from "./scanner";
 import { SkillInstaller } from "./installer";
 import { SkillSearcher } from "./search";
+import { handleRun } from "./commands/run";
+import { defaultContext } from "./core/factory";
 
 export const server = new Server(
   {
@@ -28,7 +30,6 @@ export const server = new Server(
 );
 
 const indexPath = path.join(__dirname, "..", "registry", "index.json");
-const packagesDir = path.join(__dirname, "..", "registry", "packages");
 
 // ============================================================================
 // 1. Expose Tools
@@ -38,7 +39,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: "search_skills",
-        description: "Search the AgentPM registry index for available AI skills and prompt playbooks by query keyword.",
+        description: "Search the AgentPM registry index for available AI skills and prompt playbooks by query keyword instantly.",
         inputSchema: {
           type: "object",
           properties: {
@@ -59,6 +60,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             skillName: {
               type: "string",
               description: "Name or slug of the skill to install (e.g., 'blog-write', 'python-refactor')"
+            }
+          },
+          required: ["skillName"]
+        }
+      },
+      {
+        name: "run_skill",
+        description: "Executes script blocks or renders playbook instructions for an installed skill.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            skillName: {
+              type: "string",
+              description: "Name or slug of the skill to run."
             }
           },
           required: ["skillName"]
@@ -91,16 +106,32 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const query = String(args?.query || "").trim().toLowerCase();
         if (!fs.existsSync(indexPath)) {
           return {
-            content: [{ type: "text", text: "⚠️ Registry index not compiled locally. Seeder must be run." }],
+            content: [{ type: "text", text: "⚠️ Registry index not compiled locally." }],
             isError: true
           };
         }
         
-        const raw = fs.readFileSync(indexPath, "utf8");
-        const index = JSON.parse(raw);
+        const cachePath = path.join(path.dirname(indexPath), 'index.search.json');
+        let forceRebuild = false;
+
+        if (fs.existsSync(cachePath)) {
+          const indexStat = fs.statSync(indexPath);
+          const cacheStat = fs.statSync(cachePath);
+          if (indexStat.mtime > cacheStat.mtime) {
+            forceRebuild = true;
+          }
+        } else {
+          forceRebuild = true;
+        }
+
+        let index: any[] = [];
+        if (forceRebuild) {
+          const raw = fs.readFileSync(indexPath, "utf8");
+          index = JSON.parse(raw);
+        }
         
         const searcher = new SkillSearcher();
-        searcher.indexSkills(index);
+        searcher.loadOrBuildIndex(index, cachePath, forceRebuild, fs);
         const matches = searcher.search(query);
 
         const results = matches.slice(0, 5).map((pkg: any) => 
@@ -122,7 +153,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "install_skill": {
         const skillName = String(args?.skillName || "").trim();
         
-        // 1. Fetch
         let content: string;
         try {
           content = await SkillInstaller.fetchRemoteSkill(skillName);
@@ -133,7 +163,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
 
-        // 2. Audit
         const auditResult = SecurityScanner.audit(content);
         if (!auditResult.isSafe) {
           return {
@@ -149,13 +178,41 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
 
-        // 3. Save
         const savePath = SkillInstaller.saveSkillLocal(skillName, content);
         return {
           content: [
             {
               type: "text",
               text: `✅ Skill '${skillName}' successfully installed!\nSaved at: ${savePath}`
+            }
+          ]
+        };
+      }
+
+      case "run_skill": {
+        const skillName = String(args?.skillName || "").trim();
+        
+        // Setup capture buffers for logs/errors to return over MCP response
+        const logs: string[] = [];
+        const errors: string[] = [];
+        const mcpContext = {
+          ...defaultContext,
+          io: {
+            log: (msg: string) => logs.push(msg),
+            error: (msg: string) => errors.push(msg),
+            write: (msg: string) => logs.push(msg)
+          }
+        };
+
+        await handleRun(mcpContext, skillName);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `🚀 Skill execution result:\n\n` + 
+                    (logs.length > 0 ? `Output:\n${logs.join('\n')}\n` : '') +
+                    (errors.length > 0 ? `Errors:\n${errors.join('\n')}` : '')
             }
           ]
         };
@@ -227,7 +284,6 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     };
   }
 
-  // Fallback for skill contents
   const match = uri.match(/^agentpm:\/\/skills\/content\/(.+)$/);
   if (match) {
     const slug = match[1];

@@ -12,23 +12,47 @@ export interface SearchResult {
 
 export class SkillSearcher {
   private miniSearch: MiniSearch;
+  private static searchOptions = {
+    fields: ['name', 'slug', 'description', 'tags'],
+    storeFields: ['id', 'name', 'slug', 'description', 'version', 'tags'],
+    searchOptions: {
+      boost: { name: 3, tags: 2, slug: 1.5, description: 1 },
+      fuzzy: 0.4,
+      prefix: true
+    }
+  };
 
   constructor() {
-    this.miniSearch = new MiniSearch({
-      fields: ['name', 'slug', 'description', 'tags'], // fields to index for searching
-      storeFields: ['id', 'name', 'slug', 'description', 'version', 'tags'], // fields to return with search results
-      searchOptions: {
-        boost: { name: 3, tags: 2, slug: 1.5, description: 1 },
-        fuzzy: 0.4, // tolerates typo matching based on term length (e.g., edit distance 2 for 5-letter words)
-        prefix: true // enables partial matches (e.g., "react" from "rea")
-      }
-    });
+    this.miniSearch = new MiniSearch(SkillSearcher.searchOptions);
   }
 
   /**
-   * Loads and indexes an array of skills into the search index.
-   * @param skills Array of skill definitions
+   * Loads search index. If cache exists and is fresh, loads it directly.
+   * Otherwise, builds index from scratch and serializes to cache.
    */
+  public loadOrBuildIndex(skills: any[], cachePath: string, forceRebuild: boolean, fsCtx: any): void {
+    if (!forceRebuild && fsCtx.existsSync(cachePath)) {
+      try {
+        const serialized = fsCtx.readFileSync(cachePath, 'utf8');
+        this.miniSearch = MiniSearch.loadJSON(serialized, SkillSearcher.searchOptions);
+        return;
+      } catch (err) {
+        // Fallback to building if cache is corrupted
+      }
+    }
+
+    // Build from scratch
+    this.indexSkills(skills);
+
+    // Write to cache
+    try {
+      const serialized = JSON.stringify(this.miniSearch.toJSON());
+      fsCtx.writeFileSync(cachePath, serialized, 'utf8');
+    } catch (err) {
+      // Ignore cache write errors
+    }
+  }
+
   public indexSkills(skills: any[]): void {
     const seen = new Set<string>();
     const documents: any[] = [];
@@ -52,11 +76,6 @@ export class SkillSearcher {
     this.miniSearch.addAll(documents);
   }
 
-  /**
-   * Performs a search query against the indexed skills and returns ranked results.
-   * @param query Search query text
-   * @returns Formatted search results ranked by relevance
-   */
   public search(query: string): SearchResult[] {
     if (!query || query.trim() === '') {
       return [];
