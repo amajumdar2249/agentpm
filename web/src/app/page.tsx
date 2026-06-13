@@ -28,6 +28,8 @@ export default function Marketplace() {
   const [error, setError] = useState<string | null>(null);
   const [selectedSkill, setSelectedSkill] = useState<SkillItem | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [visibleCount, setVisibleCount] = useState(18);
   
   const searchIndexRef = useRef<MiniSearch | null>(null);
 
@@ -61,7 +63,6 @@ export default function Marketplace() {
         }));
 
         setSkills(normalizedData);
-        setResults(normalizedData.slice(0, 18)); // Default first 18 skills
 
         // Initialize MiniSearch indexing
         const searchIndex = new MiniSearch({
@@ -98,29 +99,39 @@ export default function Marketplace() {
     fetchSkills();
   }, []);
 
-  // Handle live search matching
+  // Handle live search & category matching
   useEffect(() => {
-    if (!searchIndexRef.current) return;
-    
+    let matched: SkillItem[] = [];
+
     if (searchQuery.trim() === "") {
-      setResults(skills.slice(0, 18)); // default fallback list
-      return;
+      matched = skills;
+    } else if (searchIndexRef.current) {
+      const searchResults = searchIndexRef.current.search(searchQuery);
+      matched = searchResults.map(res => ({
+        id: res.id,
+        name: res.name,
+        slug: res.slug,
+        description: res.description,
+        version: res.version,
+        tags: res.tags,
+        ratings: res.ratings,
+        score: res.score
+      }));
+    } else {
+      matched = skills;
     }
 
-    const searchResults = searchIndexRef.current.search(searchQuery);
-    const mappedResults = searchResults.map(res => ({
-      id: res.id,
-      name: res.name,
-      slug: res.slug,
-      description: res.description,
-      version: res.version,
-      tags: res.tags,
-      ratings: res.ratings,
-      score: res.score
-    }));
+    // Apply category filter if not "all"
+    if (selectedCategory !== "all") {
+      matched = matched.filter(item => 
+        item.tags.some(tag => tag.toLowerCase() === selectedCategory.toLowerCase()) ||
+        item.slug.toLowerCase().includes(selectedCategory.toLowerCase())
+      );
+    }
 
-    setResults(mappedResults);
-  }, [searchQuery, skills]);
+    setResults(matched);
+    setVisibleCount(18); // Reset visible count on filter change
+  }, [searchQuery, selectedCategory, skills]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -190,12 +201,26 @@ export default function Marketplace() {
         />
       </div>
 
+      {/* Category Pills */}
+      <div className="category-pills">
+        {["all", "automation", "devops", "frontend", "backend", "security", "finance", "general"].map((cat) => (
+          <button
+            key={cat}
+            className={`category-pill ${selectedCategory === cat ? 'active' : ''}`}
+            onClick={() => setSelectedCategory(cat)}
+          >
+            {cat.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
       {/* Results Title */}
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1.5rem", color: "#a0a0b0" }}>
         <span>
           {searchQuery ? `Search results for "${searchQuery}"` : "Featured AI Packages"}
+          {selectedCategory !== "all" && ` in ${selectedCategory.toUpperCase()}`}
         </span>
-        <span>Showing {results.length} results</span>
+        <span>Showing {results.slice(0, visibleCount).length} of {results.length} results</span>
       </div>
 
       {/* Grid List */}
@@ -205,38 +230,52 @@ export default function Marketplace() {
           <p style={{ fontSize: "0.9rem", marginTop: "0.5rem" }}>Try adjusting your keywords or search tags.</p>
         </div>
       ) : (
-        <div className="skills-grid">
-          {results.map((skill) => (
-            <div key={skill.id} className="card" onClick={() => setSelectedSkill(skill)}>
-              <div className="card-header">
-                <span className="card-title" title={skill.name}>{skill.name}</span>
-                <span className="card-version">v{skill.version}</span>
-              </div>
-              
-              <p className="card-desc">{skill.description}</p>
-              
-              <div className="card-footer">
-                <div className="tags">
-                  {skill.tags.slice(0, 2).map((tag, i) => (
-                    <span key={i} className="tag">{tag}</span>
-                  ))}
-                  {skill.tags.length > 2 && <span className="tag">+{skill.tags.length - 2}</span>}
+        <>
+          <div className="skills-grid">
+            {results.slice(0, visibleCount).map((skill) => (
+              <div key={skill.id} className="card" onClick={() => setSelectedSkill(skill)}>
+                <div className="card-header">
+                  <span className="card-title" title={skill.name}>{skill.name}</span>
+                  <span className="card-version">v{skill.version}</span>
                 </div>
                 
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-                  {skill.ratings && skill.ratings.total_ratings > 0 ? (
-                    <>
-                      {renderStars(skill.ratings.average_rating)}
-                      <span style={{ fontSize: "0.75rem", color: "#62627a" }}>({skill.ratings.total_ratings})</span>
-                    </>
-                  ) : (
-                    <span style={{ fontSize: "0.75rem", color: "#62627a" }}>Unrated</span>
-                  )}
+                <p className="card-desc">{skill.description}</p>
+                
+                <div className="card-footer">
+                  <div className="tags">
+                    {skill.tags.slice(0, 2).map((tag, i) => (
+                      <span key={i} className="tag">{tag}</span>
+                    ))}
+                    {skill.tags.length > 2 && <span className="tag">+{skill.tags.length - 2}</span>}
+                  </div>
+                  
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                    {skill.ratings && skill.ratings.total_ratings > 0 ? (
+                      <>
+                        {renderStars(skill.ratings.average_rating)}
+                        <span style={{ fontSize: "0.75rem", color: "#62627a" }}>({skill.ratings.total_ratings})</span>
+                      </>
+                    ) : (
+                      <span style={{ fontSize: "0.75rem", color: "#62627a" }}>Unrated</span>
+                    )}
+                  </div>
                 </div>
               </div>
+            ))}
+          </div>
+
+          {/* Load More Button */}
+          {results.length > visibleCount && (
+            <div style={{ display: "flex", justifyContent: "center", marginTop: "3rem", marginBottom: "3rem" }}>
+              <button 
+                onClick={() => setVisibleCount(prev => prev + 18)}
+                className="load-more-btn"
+              >
+                Load More Skills 📦
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {/* Skill Detailed Modal Overlay */}

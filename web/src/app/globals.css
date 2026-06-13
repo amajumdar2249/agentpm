@@ -412,3 +412,55 @@ header p {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* Category Filters & Load More styles */
+.category-pills {
+  display: flex;
+  justify-content: center;
+  gap: 0.8rem;
+  margin-bottom: 2.5rem;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 10;
+}
+
+.category-pill {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  padding: 0.5rem 1.2rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-speed);
+  backdrop-filter: blur(10px);
+}
+
+.category-pill:hover, .category-pill.active {
+  border-color: var(--accent-color);
+  color: white;
+  background: rgba(138, 43, 226, 0.2);
+  box-shadow: 0 0 10px rgba(138, 43, 226, 0.3);
+}
+
+.load-more-btn {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  padding: 1rem 2.5rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  transition: all var(--transition-speed);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--card-shadow);
+}
+
+.load-more-btn:hover {
+  border-color: var(--accent-color);
+  background: rgba(138, 43, 226, 0.1);
+  box-shadow: 0 0 20px rgba(138, 43, 226, 0.2);
+  transform: translateY(-2px);
+}
