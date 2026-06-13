@@ -10,6 +10,7 @@ import { handleValidate } from './commands/validate';
 import { handleRate } from './commands/rate';
 import { handleRun } from './commands/run';
 import { handleGenerate } from './commands/generate';
+import { handlePublish } from './commands/publish';
 
 const program = new Command();
 const ctx = defaultContext;
@@ -75,7 +76,14 @@ program
   .argument('[prompt]', 'Goal or description of what the skill does')
   .action((skillName, prompt) => handleGenerate(ctx, skillName, prompt));
 
-// 9. mcp command
+// 9. publish command
+program
+  .command('publish')
+  .description('Publish a skill from a local SKILL.md to the registry')
+  .argument('[skillDir]', 'Path to the directory containing SKILL.md')
+  .action((skillDir) => handlePublish(ctx, skillDir));
+
+// 10. mcp command
 program
   .command('mcp')
   .description('Start the Model Context Protocol (MCP) server over stdio')
