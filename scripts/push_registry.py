@@ -41,7 +41,7 @@ def push_to_github():
     run_git_cmd(["git", "add", "index.json", "packages/"], registry_dir)
     
     try:
-        run_git_cmd(["git", "commit", "-m", "Compile and update registry index with 19.8k skills"], registry_dir)
+        run_git_cmd(["git", "commit", "-m", "Compile and update registry index with 44.5k skills"], registry_dir)
         print("Committed successfully.")
     except subprocess.CalledProcessError as e:
         if "nothing to commit" in e.stdout or "nothing to commit" in e.stderr:

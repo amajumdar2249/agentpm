@@ -72,7 +72,7 @@ def fetch_github_reviews():
                             
             print(f"Successfully loaded reviews for {len(reviews)} packages.", flush=True)
     except Exception as e:
-        print(f"⚠️ Could not fetch reviews from GitHub API (proceeding with default ratings): {e}", flush=True)
+        print(f"[Warning] Could not fetch reviews from GitHub API (proceeding with default ratings): {e}", flush=True)
         
     return reviews
 
