@@ -96,12 +96,12 @@ export class SecurityScanner {
       description: "Explicit directions to steal local files/keys."
     },
     {
-      pattern: /curl\s+[^\n]*?\s+-d\s*/i,
+      pattern: /curl\s+.*?(\s+-d|\s+--data|\s+--data-raw|\s+--data-binary)\b/i,
       category: "Data Exfiltration",
       description: "HTTP POST commands configured to upload local contents."
     },
     {
-      pattern: /wget\s+[^\n]*?\s+--post-data[=\s]/i,
+      pattern: /wget\s+.*?\s+--post-data/i,
       category: "Data Exfiltration",
       description: "HTTP POST via wget configured to upload local contents."
     },
@@ -138,12 +138,12 @@ export class SecurityScanner {
 
     // 4. Repository Hijacking
     {
-      pattern: /git\s+push\s+[^\n]*?--force/i,
+      pattern: /git\s+push\s+.*?(-f|--force)\b/i,
       category: "Repository Hijacking",
       description: "Force pushes to repository which can wipe remote commit history."
     },
     {
-      pattern: /npm\s+publish\s+[^\n]*?--force/i,
+      pattern: /npm\s+publish\s+.*?(-f|--force)\b/i,
       category: "Repository Hijacking",
       description: "Unauthorized forced package publishing."
     }
