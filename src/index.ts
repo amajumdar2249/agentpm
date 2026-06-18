@@ -11,6 +11,7 @@ import { handleRate } from './commands/rate';
 import { handleRun } from './commands/run';
 import { handleGenerate } from './commands/generate';
 import { handlePublish } from './commands/publish';
+import { handleAudit } from './commands/audit';
 
 const program = new Command();
 const ctx = defaultContext;
@@ -82,6 +83,13 @@ program
   .description('Publish a skill from a local SKILL.md to the registry')
   .argument('[skillDir]', 'Path to the directory containing SKILL.md')
   .action((skillDir) => handlePublish(ctx, skillDir));
+
+// 10. audit command
+program
+  .command('audit')
+  .description('Audit a skill file or directory for security threats')
+  .argument('<path>', 'Path to file or directory')
+  .action((path) => handleAudit(ctx, path));
 
 // 10. mcp command
 program
