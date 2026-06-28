@@ -9,7 +9,7 @@ export async function handleInstall(ctx: CommandContext, skill: string) {
   
   const fetchSpinner = ora('Fetching remote skill from registry...').start();
   try {
-    const content = await SkillInstaller.fetchRemoteSkill(skill);
+    const { content, version } = await SkillInstaller.fetchRemoteSkill(skill);
     fetchSpinner.succeed('Skill downloaded successfully.');
 
     const auditSpinner = ora('Scanning for prompt injections targeting your AI...').start();
@@ -26,7 +26,7 @@ export async function handleInstall(ctx: CommandContext, skill: string) {
     auditSpinner.succeed(chalk.green('Skill audited: No malicious prompts found.'));
 
     const installSpinner = ora('Writing to local .agents/skills directory...').start();
-    const savePath = SkillInstaller.saveSkillLocal(skill, content);
+    const savePath = SkillInstaller.saveSkillLocal(skill, content, version);
     installSpinner.succeed(`Successfully installed ${chalk.bold(skill)}!`);
     ctx.io.log(chalk.gray(`\nLocation: ${savePath}`));
   } catch (err) {

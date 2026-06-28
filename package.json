@@ -6,11 +6,37 @@
   "bin": {
     "agentpm": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "ts-node src/index.ts",
-    "test": "jest"
+    "test": "jest",
+    "prepublishOnly": "npm run build"
   },
+  "keywords": [
+    "ai-agent",
+    "package-manager",
+    "skills",
+    "prompt-injection",
+    "security",
+    "mcp",
+    "claude-code",
+    "cursor",
+    "agentpm",
+    "cli"
+  ],
+  "author": "amajumdar2249",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/amajumdar2249/agentpm.git"
+  },
+  "homepage": "https://github.com/amajumdar2249/agentpm",
+  "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "chalk": "^4.1.2",
@@ -25,5 +51,8 @@
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

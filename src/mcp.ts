@@ -154,8 +154,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const skillName = String(args?.skillName || "").trim();
         
         let content: string;
+        let version: string;
         try {
-          content = await SkillInstaller.fetchRemoteSkill(skillName);
+          const result = await SkillInstaller.fetchRemoteSkill(skillName);
+          content = result.content;
+          version = result.version;
         } catch (err) {
           return {
             content: [{ type: "text", text: `❌ Fetch failed: ${(err as Error).message}` }],
@@ -178,7 +181,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
 
-        const savePath = SkillInstaller.saveSkillLocal(skillName, content);
+        const savePath = SkillInstaller.saveSkillLocal(skillName, content, version);
         return {
           content: [
             {

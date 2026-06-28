@@ -2,15 +2,18 @@ import os
 import json
 import re
 import sys
+import uuid
+import hashlib
 
 # Paths
+workspace_dir = os.environ.get("USERPROFILE", os.path.expanduser("~"))
 skills_dirs = [
-    r"c:\Users\amaju\Downloads\GitHub Repo's\skills_sh_extracted",
-    r"c:\Users\amaju\Downloads\GitHub Repo's\paperclip-master\paperclip-master\skills",
-    r"c:\Users\amaju\Downloads\GitHub Repo's\ECC-main\ECC-main\skills",
-    r"c:\Users\amaju\Downloads\GitHub Repo's\andrej-karpathy-skills-main\andrej-karpathy-skills-main\skills"
+    os.path.join(workspace_dir, "Downloads", "GitHub Repo's", "skills_sh_extracted"),
+    os.path.join(workspace_dir, "Downloads", "GitHub Repo's", "paperclip-master", "paperclip-master", "skills"),
+    os.path.join(workspace_dir, "Downloads", "GitHub Repo's", "ECC-main", "ECC-main", "skills"),
+    os.path.join(workspace_dir, "Downloads", "GitHub Repo's", "andrej-karpathy-skills-main", "andrej-karpathy-skills-main", "skills")
 ]
-output_dir = r"c:\Users\amaju\Downloads\agentpm\registry"
+output_dir = os.path.join(workspace_dir, "Downloads", "agentpm", "registry")
 index_output = os.path.join(output_dir, "index.json")
 packages_dir = os.path.join(output_dir, "packages")
 
@@ -28,12 +31,18 @@ def parse_frontmatter(content):
             idx += 1
         
         # Parse YAML-like lines
-        for fm_line in fm_lines:
-            if ':' in fm_line:
-                parts = fm_line.split(':', 1)
-                if len(parts) == 2:
-                    key, val = parts
-                    meta[key.strip()] = val.strip().strip('"').strip("'")
+        try:
+            import yaml
+            meta = yaml.safe_load('\n'.join(fm_lines)) or {}
+        except ImportError:
+            for fm_line in fm_lines:
+                if ':' in fm_line:
+                    parts = fm_line.split(':', 1)
+                    if len(parts) == 2:
+                        key, val = parts
+                        meta[key.strip()] = val.strip().strip('"').strip("'")
+        except Exception:
+            pass
         
         # Remaining content
         remaining = '\n'.join(lines[idx+1:])
@@ -84,6 +93,7 @@ def build_registry():
     
     index_data = []
     seen_slugs = {}
+    seen_hashes = set()
     processed_count = 0
     
     for s_dir in skills_dirs:
@@ -100,6 +110,12 @@ def build_registry():
                         raw_content = f.read()
                 
                     meta, prompt_content = parse_frontmatter(raw_content)
+                    
+                    # Fix 13: De-duplicate 33% bloat via content hashing
+                    content_hash = hashlib.sha256(prompt_content.encode('utf-8', errors='ignore')).hexdigest()
+                    if content_hash in seen_hashes:
+                        continue
+                    seen_hashes.add(content_hash)
                     
                     name = meta.get("name")
                     if not name:
@@ -134,20 +150,29 @@ def build_registry():
                         "trust_score": trust_score
                     }
                     
+                    # Ensure tags is a list
+                    raw_tags = meta.get("tags", [])
+                    if isinstance(raw_tags, str):
+                        tag_list = [t.strip() for t in raw_tags.split(",") if t.strip()]
+                    elif isinstance(raw_tags, list):
+                        tag_list = [str(t).strip() for t in raw_tags if str(t).strip()]
+                    else:
+                        tag_list = []
+                    
                     # Package details (Standard Schema)
                     package_data = {
-                        "id": meta.get("id", f"f81d4fae-7dec-11d0-a765-{processed_count:012d}"), # fallback id
+                        "id": meta.get("id", str(uuid.uuid4())), # Fix 5: Real UUIDs
                         "name": name,
                         "slug": slug,
                         "description": description,
                         "content": prompt_content,
                         "author": meta.get("author", "agentpm"),
-                        "version": meta.get("version", "1.0.0"),
+                        "version": str(meta.get("version", "1.0.0")),
                         "created_at": meta.get("created_at", "2026-05-30T00:00:00Z"),
                         "updated_at": meta.get("updated_at", "2026-05-30T00:00:00Z"),
                         "license": meta.get("license", "MIT"),
                         "category": meta.get("category", "automation"),
-                        "tags": [t.strip() for t in meta.get("tags", "").split(",") if t.strip()] or ["agent"],
+                        "tags": tag_list or ["agent"],
                         "difficulty_level": meta.get("difficulty_level", "intermediate"),
                         "maturity_level": meta.get("maturity_level", "stable"),
                         "compatibility": {

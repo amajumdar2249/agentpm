@@ -19,13 +19,13 @@ export async function handleRun(ctx: CommandContext, skillName: string) {
     ctx.io.log(chalk.yellow(`⚠️ Skill '${skillName}' is not installed locally in this workspace.`));
     const autoInstallSpinner = ora(`Auto-fetching & installing '${skillName}'...`).start();
     try {
-      const content = await SkillInstaller.fetchRemoteSkill(skillName);
+      const { content, version } = await SkillInstaller.fetchRemoteSkill(skillName);
       const auditResult = SecurityScanner.audit(content);
       if (!auditResult.isSafe) {
         autoInstallSpinner.fail(chalk.red('Security audit failed. Execution aborted.'));
         ctx.process.exit(1);
       }
-      skillPath = SkillInstaller.saveSkillLocal(skillName, content);
+      skillPath = SkillInstaller.saveSkillLocal(skillName, content, version);
       autoInstallSpinner.succeed(`Successfully auto-installed ${skillName}!`);
     } catch (err) {
       autoInstallSpinner.fail(chalk.red(`Failed to auto-install skill: ${(err as Error).message}`));
