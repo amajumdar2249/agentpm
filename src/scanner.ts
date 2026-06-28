@@ -157,8 +157,15 @@ export class SecurityScanner {
   public static audit(content: string): { isSafe: boolean; threats: string[] } {
     const threats: string[] = [];
 
+    // Normalize to defeat unicode bypass attacks:
+    // "Ignore" -> "Ignore" | "rgnore" -> "ignore" | "i g n o r e" -> "ignore"
+    const normalized = content
+      .normalize('NFKD')            // decompose unicode lookalikes
+      .replace(/[\p{M}]/gu, '')     // strip combining marks
+      .replace(/\s+/g, ' ');        // collapse whitespace
+
     for (const rule of this.maliciousPatterns) {
-      if (rule.pattern.test(content)) {
+      if (rule.pattern.test(normalized)) {
         threats.push(`[${rule.category}] Matched: "${rule.pattern.source}" - ${rule.description}`);
       }
     }

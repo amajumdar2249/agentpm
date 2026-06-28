@@ -39,7 +39,9 @@ program
   .command('search')
   .description('Search for agent skills in registry using fuzzy matching')
   .argument('<query>', 'Search term')
-  .action((query) => handleSearch(ctx, query));
+  .option('-t, --tag <tag>', 'Filter results by tag')
+  .option('-n, --limit <n>', 'Max results to show', '10')
+  .action((query, options) => handleSearch(ctx, query, options));
 
 // 4. list command
 program
@@ -88,16 +90,55 @@ program
 program
   .command('audit')
   .description('Audit a skill file or directory for security threats')
-  .argument('<path>', 'Path to file or directory')
-  .action((path) => handleAudit(ctx, path));
+  .argument('[path]', 'Path to file or directory. Defaults to .agents/skills')
+  .action((path) => handleAudit(ctx, path || '.agents/skills'));
 
-// 10. mcp command
+// 11. mcp command
 program
   .command('mcp')
   .description('Start the Model Context Protocol (MCP) server over stdio')
   .action(async () => {
     const { startMcpServer } = await import('./mcp');
     await startMcpServer();
+  });
+
+// 12. info command
+program
+  .command('info')
+  .description('Show detailed information about a skill without installing it')
+  .argument('<skill>', 'Name of the skill to inspect')
+  .action(async (skillName) => {
+    const { handleInfo } = await import('./commands/info');
+    handleInfo(ctx, skillName);
+  });
+
+// 13. doctor command
+program
+  .command('doctor')
+  .description('Diagnose AgentPM installation and environment issues')
+  .action(async () => {
+    const { handleDoctor } = await import('./commands/doctor');
+    handleDoctor(ctx);
+  });
+
+// 14. uninstall command
+program
+  .command('uninstall')
+  .description('Remove an installed skill from your workspace')
+  .argument('<skill>', 'Name of the skill to uninstall')
+  .action(async (skillName) => {
+    const { handleUninstall } = await import('./commands/uninstall');
+    handleUninstall(ctx, skillName);
+  });
+
+// 15. update command
+program
+  .command('update')
+  .description('Update installed skills to their latest versions')
+  .argument('[skill]', 'Name of a specific skill to update (omit to update all)')
+  .action(async (skillName) => {
+    const { handleUpdate } = await import('./commands/update');
+    handleUpdate(ctx, skillName);
   });
 
 program.parse(process.argv);

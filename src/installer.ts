@@ -37,7 +37,7 @@ export class SkillInstaller {
       throw new Error(`Invalid skill name format: ${skillName}`);
     }
     
-    const slug = encodeURIComponent(skillName.toLowerCase().replace(/[@\/]/g, '-').replace(/^-/, '').replace(/\s+/g, '-'));
+    const slug = skillName.toLowerCase().replace(/[@\/]/g, '-').replace(/^-/, '').replace(/\s+/g, '-');
     const localPkgPath = path.join(this.localRegistryDir, `${slug}.json`);
 
     // 1. Try Local Registry Seeded Dataset
@@ -87,6 +87,7 @@ export class SkillInstaller {
     
     // Also update agentpm.json config dependencies
     this.updateWorkspaceConfig(skillName, version);
+    this.updateLockfile(skillName, version, content); // Fix 12: update lockfile
     
     return targetPath;
   }
@@ -105,6 +106,88 @@ export class SkillInstaller {
       } catch (err) {
         console.warn(chalk.yellow(`Warning: Failed to update agentpm.json config - ${(err as Error).message}`));
       }
+    }
+  }
+
+  // Fix 12: agentpm.lock support
+  private static updateLockfile(skillName: string, version: string, content: string) {
+    const lockPath = path.join(process.cwd(), 'agentpm.lock');
+    const crypto = require('crypto');
+    const integrity = 'sha256-' + crypto.createHash('sha256').update(content).digest('hex');
+
+    let lock: Record<string, any> = { lockfileVersion: 1, skills: {} };
+
+    if (fs.existsSync(lockPath)) {
+      try {
+        lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+      } catch {
+        console.warn(chalk.yellow('⚠️ agentpm.lock is corrupted. Recreating.'));
+      }
+    }
+
+    const slug = skillName.toLowerCase().replace(/[@\/]/g, '-').replace(/^-/, '').replace(/\s+/g, '-');
+
+    lock.skills[skillName] = {
+      version,
+      integrity,
+      installedAt: new Date().toISOString(),
+      resolved: `https://raw.githubusercontent.com/amajumdar2249/agentpm-registry/main/packages/${slug}.json`
+    };
+
+    try {
+      fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2), 'utf8');
+    } catch (err) {
+      console.warn(chalk.yellow(`⚠️ Could not update agentpm.lock: ${(err as Error).message}`));
+    }
+  }
+
+  // Fix 10: Uninstall skill
+  public static uninstallSkill(skillName: string): boolean {
+    const safeName = skillName.replace(/[\/\@]/g, '-').replace(/^-/, '').replace(/\s+/g, '-');
+    const skillPath = path.join(this.agentsDir, `${safeName}.md`);
+    
+    if (!fs.existsSync(skillPath)) {
+      return false; // Skill not installed
+    }
+    
+    fs.unlinkSync(skillPath);
+
+    // Remove from agentpm.json
+    const configPath = path.join(process.cwd(), 'agentpm.json');
+    if (fs.existsSync(configPath)) {
+      try {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        delete config.skills?.[skillName];
+        fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+      } catch (err) {
+        console.warn(chalk.yellow(`Could not update agentpm.json after uninstall: ${(err as Error).message}`));
+      }
+    }
+
+    // Remove from agentpm.lock
+    const lockPath = path.join(process.cwd(), 'agentpm.lock');
+    if (fs.existsSync(lockPath)) {
+      try {
+        const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+        delete lock.skills?.[skillName];
+        fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2), 'utf8');
+      } catch (err) {
+        console.warn(chalk.yellow(`Could not update agentpm.lock after uninstall: ${(err as Error).message}`));
+      }
+    }
+
+    return true;
+  }
+
+  // Fix 11: Get installed skill version for update check
+  public static getInstalledVersion(skillName: string): string | null {
+    const configPath = path.join(process.cwd(), 'agentpm.json');
+    if (!fs.existsSync(configPath)) return null;
+    try {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      return config.skills?.[skillName] ?? null;
+    } catch {
+      return null;
     }
   }
 }

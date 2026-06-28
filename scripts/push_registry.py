@@ -41,7 +41,12 @@ def push_to_github():
     run_git_cmd(["git", "add", "index.json", "packages/"], registry_dir)
     
     try:
-        run_git_cmd(["git", "commit", "-m", "Compile and update registry index with 44.5k skills"], registry_dir)
+        import datetime
+        import json
+        with open(os.path.join(registry_dir, "index.json"), "r") as f:
+            count = len(json.load(f))
+        msg = f"Registry update: {count} skills - {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+        run_git_cmd(["git", "commit", "-m", msg], registry_dir)
         print("Committed successfully.")
     except subprocess.CalledProcessError as e:
         if "nothing to commit" in e.stdout or "nothing to commit" in e.stderr:
@@ -53,13 +58,15 @@ def push_to_github():
     print("Pushing registry database to GitHub raw server...")
     try:
         # We try pushing. The user might need to authenticate if credential helper is not configured.
-        run_git_cmd(["git", "push", "-u", "origin", "main", "--force"], registry_dir)
+        run_git_cmd(["git", "pull", "--rebase", "origin", "main"], registry_dir) # Sync with remote safely
+        run_git_cmd(["git", "push", "-u", "origin", "main"], registry_dir)       # No --force
         print("🌌 Registry database deployed successfully to GitHub raw server!")
     except Exception as err:
         print("\n⚠️ Push failed. This is usually due to GitHub authentication requirements.")
         print("Please verify you have created the repository 'amajumdar2249/agentpm-registry' on GitHub.")
         print("Alternatively, you can run the following command manually inside 'C:\\Users\\amaju\\Downloads\\agentpm\\registry':")
-        print("  git push -u origin main --force")
+        print("  git pull --rebase origin main")
+        print("  git push -u origin main")
 
 if __name__ == "__main__":
     push_to_github()
