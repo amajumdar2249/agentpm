@@ -141,4 +141,13 @@ program
     handleUpdate(ctx, skillName);
   });
 
+program
+  .command('ui')
+  .description('Launch the interactive Terminal UI')
+  .argument('[query]', 'Optional initial search query')
+  .action(async (query) => {
+    const { handleUI } = await import('./commands/ui');
+    await handleUI(ctx, query);
+  });
+
 program.parse(process.argv);

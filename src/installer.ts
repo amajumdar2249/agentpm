@@ -53,18 +53,36 @@ export class SkillInstaller {
     }
 
     // 2. Remote Registry Fallback (GitHub Raw or custom endpoint)
-    // For demonstration, fallback to awesome-chatgpt-prompts or a raw github content.
-    const url = `https://raw.githubusercontent.com/amajumdar2249/agentpm-registry/main/packages/${slug}.json`;
+    let registryUrl = 'https://raw.githubusercontent.com/amajumdar2249/agentpm-registry/main/packages';
+    let authToken = '';
+
+    const configPath = path.join(process.cwd(), 'agentpm.json');
+    if (fs.existsSync(configPath)) {
+      try {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (config.registryUrl) registryUrl = config.registryUrl.replace(/\/$/, '');
+        if (config.authToken) authToken = config.authToken;
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    const url = `${registryUrl}/${slug}.json`;
     
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
     try {
-      const response = await fetch(url, { signal: controller.signal });
+      const headers: Record<string, string> = {};
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+
+      const response = await fetch(url, { signal: controller.signal, headers });
       clearTimeout(timeout);
 
       if (!response.ok) {
-        throw new Error(`Skill '${skillName}' not found in registry (local or remote).`);
+        throw new Error(`Skill '${skillName}' not found in registry (local or remote). Status: ${response.status}`);
       }
       
       const json = await response.json();
