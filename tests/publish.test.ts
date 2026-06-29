@@ -3,6 +3,11 @@ import path from 'path';
 import { handlePublish } from '../src/commands/publish';
 import { CommandContext } from '../src/core/factory';
 
+jest.mock('sigstore', () => ({
+  sign: jest.fn().mockResolvedValue({ bundle: 'mock-signature-bundle' }),
+  verify: jest.fn().mockResolvedValue(true)
+}));
+
 describe('Publish Command', () => {
   const originalCwd = process.cwd();
   const testDir = path.join(__dirname, 'test-publish-workspace');

@@ -2,6 +2,11 @@ import fs from 'fs';
 import path from 'path';
 import { SkillInstaller } from '../src/installer';
 
+jest.mock('sigstore', () => ({
+  sign: jest.fn().mockResolvedValue({ bundle: 'mock-signature-bundle' }),
+  verify: jest.fn().mockResolvedValue(true)
+}));
+
 describe('SkillInstaller', () => {
   const originalCwd = process.cwd();
   const testDir = path.join(__dirname, 'test-workspace');
