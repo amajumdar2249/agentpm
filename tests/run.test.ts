@@ -8,20 +8,6 @@ jest.mock('sigstore', () => ({
   verify: jest.fn().mockResolvedValue(true)
 }));
 
-jest.mock('vm2', () => ({
-  VM: class {
-    sandbox: any;
-    constructor(opts: any) {
-      this.sandbox = opts.sandbox;
-    }
-    run(code: string) {
-      if (this.sandbox && this.sandbox.console && this.sandbox.console.log) {
-        this.sandbox.console.log('hello from vm2');
-      }
-    }
-  }
-}));
-
 jest.mock('@e2b/code-interpreter', () => ({
   Sandbox: {
     create: jest.fn().mockResolvedValue({
@@ -73,9 +59,9 @@ describe('Run Command', () => {
 
     mockContext = {
       io: {
-        log: (msg) => loggedMessages.push(msg || ''),
-        error: (msg) => errorMessages.push(msg || ''),
-        write: (msg) => loggedMessages.push(msg),
+        log: (...args: any[]) => loggedMessages.push(args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')),
+        error: (...args: any[]) => errorMessages.push(args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')),
+        write: (msg: any) => loggedMessages.push(String(msg || '')),
       },
       fs: {
         promises: fs.promises,
@@ -112,14 +98,14 @@ Follow these rules carefully.`;
     expect(loggedMessages.some(m => m.includes('Follow these rules carefully.'))).toBe(true);
   });
 
-  it('should execute javascript code block securely inside vm2 sandbox', async () => {
+  it('should execute javascript code block securely inside native vm sandbox', async () => {
     const skillName = 'js-script';
     const skillContent = `---
 name: js-script
 description: JS execution
 ---
 \`\`\`javascript
-console.log("hello from vm2");
+console.log("hello from sandbox");
 \`\`\`
 `;
 
@@ -127,7 +113,7 @@ console.log("hello from vm2");
     fs.writeFileSync(skillPath, skillContent, 'utf8');
 
     await handleRun(mockContext, skillName);
-    expect(loggedMessages.some(m => m.includes('[Sandbox]') && m.includes('hello from vm2'))).toBe(true);
+    expect(loggedMessages.some(m => m.includes('[Sandbox]') && m.includes('hello from sandbox'))).toBe(true);
   });
 
   it('should execute bash code block using E2B code interpreter when API key is present', async () => {

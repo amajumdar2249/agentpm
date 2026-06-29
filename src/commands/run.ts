@@ -68,21 +68,17 @@ export async function handleRun(ctx: CommandContext, skillName: string) {
       const execSpinner = ora('Running script block...').start();
       
       if (script.lang === 'javascript' || script.lang === 'js' || script.lang === 'typescript' || script.lang === 'ts') {
-        const { VM } = require('vm2');
-        const vm = new VM({
-          timeout: 5000,
-          sandbox: {
-            console: {
-              log: (...args: any[]) => ctx.io.log(chalk.gray('[Sandbox]'), ...args),
-              error: (...args: any[]) => ctx.io.error(chalk.red('[Sandbox]'), ...args)
-            }
-          },
-          eval: false,
-          wasm: false
-        });
+        const vm = require('vm');
+        const sandbox = {
+          console: {
+            log: (...args: any[]) => ctx.io.log(chalk.gray('[Sandbox]'), ...args),
+            error: (...args: any[]) => ctx.io.error(chalk.red('[Sandbox]'), ...args)
+          }
+        };
+        vm.createContext(sandbox);
 
         try {
-          vm.run(script.code);
+          vm.runInContext(script.code, sandbox, { timeout: 5000 });
           execSpinner.succeed(chalk.green('Sandbox execution completed.'));
         } catch (err: any) {
           execSpinner.fail(chalk.red('Sandbox execution failed!'));
