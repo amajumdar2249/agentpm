@@ -2,14 +2,16 @@ import { Hono } from 'hono';
 
 type Bindings = {
   DB: D1Database;
+  ADMIN_SECRET?: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
 
 app.get('/api/skills', async (c) => {
-  const query = c.req.query('q');
-  const limit = Math.min(Number(c.req.query('limit')) || 50, 100);
-  const offset = Number(c.req.query('offset')) || 0;
+  const rawQuery = c.req.query('q');
+  const query = rawQuery ? rawQuery.slice(0, 100) : undefined;
+  const limit = Math.max(1, Math.min(Number(c.req.query('limit')) || 50, 100));
+  const offset = Math.max(0, Number(c.req.query('offset')) || 0);
 
   let sql = 'SELECT id, name, description, author, version, tags, quality_score, trust_score FROM skills';
   const params: any[] = [];
@@ -48,9 +50,9 @@ app.get('/api/skills/:id', async (c) => {
 
 // For submitting new skills or updating existing ones (protected)
 app.post('/api/skills', async (c) => {
-  // Very basic auth for now, in a real system this would use JWTs or proper API keys
   const auth = c.req.header('Authorization');
-  if (auth !== 'Bearer agentpm_admin_secret') {
+  const expectedSecret = c.env.ADMIN_SECRET || 'agentpm_admin_secret';
+  if (auth !== `Bearer ${expectedSecret}`) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
 

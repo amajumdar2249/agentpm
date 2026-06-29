@@ -41,7 +41,8 @@ program
   .argument('<query>', 'Search term')
   .option('-t, --tag <tag>', 'Filter results by tag')
   .option('-n, --limit <n>', 'Max results to show', '10')
-  .action((query, options) => handleSearch(ctx, query, options));
+  .option('-r, --remote', 'Search remote registry directly instead of local cache')
+  .action(async (query, options) => await handleSearch(ctx, query, options));
 
 // 4. list command
 program
