@@ -8,6 +8,20 @@ jest.mock('sigstore', () => ({
   verify: jest.fn().mockResolvedValue(true)
 }));
 
+jest.mock('vm2', () => ({
+  VM: class {
+    sandbox: any;
+    constructor(opts: any) {
+      this.sandbox = opts.sandbox;
+    }
+    run(code: string) {
+      if (this.sandbox && this.sandbox.console && this.sandbox.console.log) {
+        this.sandbox.console.log('hello from vm2');
+      }
+    }
+  }
+}));
+
 jest.mock('@e2b/code-interpreter', () => ({
   Sandbox: {
     create: jest.fn().mockResolvedValue({

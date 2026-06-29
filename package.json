@@ -16,7 +16,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "ts-node src/index.ts",
-    "test": "jest",
+    "test": "jest --runInBand",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
