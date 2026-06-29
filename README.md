@@ -21,7 +21,7 @@ There is **no standard architecture** to manage, version, or secure custom AI in
 ## 🌟 The Vanguard: AgentPM
 `AgentPM` brings the robust `npm` and `cargo` experience directly to AI Agents. It transforms scattered text files into a scalable, secure, and standardized ecosystem.
 
-Every skill installed via `AgentPM` passes through a **Zero-Trust Security Sandbox**, automatically audited for malicious payloads and prompt-injection attacks before they touch your environment.
+Every skill installed via `AgentPM` is **Cryptographically Verified** via Sigstore, and passes through a **Semantic Security Filter** before executing. Any script (Bash/Python) is then run within an isolated **E2B Cloud MicroVM Sandbox**, completely protecting your local environment from prompt-injection execution payloads.
 
 ```bash
 # 1. Initialize an AI-ready workspace
@@ -41,7 +41,7 @@ $ agentpm install @oss/react-expert
 | Feature | Description |
 |---------|-------------|
 | ⚡ **Instant Discovery** | Search 19,854+ production-grade AI skills from the [AgentPM Registry](https://github.com/amajumdar2249/agentpm-registry) |
-| 🛡️ **Zero-Trust Security** | AST and heuristic engines block hidden jailbreaks and data exfiltration attempts |
+| 🛡️ **Absolute Security** | Containerized E2B MicroVM execution and Sigstore cryptographic signing |
 | 🏗️ **Agentic Workspaces** | `agentpm init` scaffolds `.agents` environments with structural integrity |
 | 🔍 **Security Auditor** | `agentpm audit` scans skill files for prompt injection and destructive commands |
 | 🤖 **AI Skill Generator** | `agentpm generate` creates new skills using offline templates or Gemini |

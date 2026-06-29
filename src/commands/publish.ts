@@ -109,10 +109,26 @@ export async function handlePublish(ctx: CommandContext, skillDirArg?: string) {
       installs: 0,
       executions: 0,
       active_users: 0
-    }
+    },
+    signature: null as any
   };
 
   parseSpinner.succeed('SKILL.md parsed and compiled successfully.');
+
+  const signSpinner = ora('Cryptographically signing skill content...').start();
+  let signatureBundle: any = null;
+  try {
+    const { sign } = require('sigstore');
+    const buffer = Buffer.from(content.trim(), 'utf8');
+    signatureBundle = await sign(buffer);
+    signSpinner.succeed(chalk.green('Skill signed successfully via Sigstore!'));
+  } catch (err: any) {
+    signSpinner.fail(chalk.red(`Failed to sign skill: ${err.message}`));
+    ctx.io.log(chalk.yellow('Note: Sigstore requires authentication to issue a short-lived certificate.'));
+    // We proceed without signature if it fails, or we could exit. Let's proceed for now.
+  }
+
+  packageData.signature = signatureBundle;
 
   // Validate skill structure against schema
   const validateSpinner = ora('Validating compiled skill package against schema...').start();

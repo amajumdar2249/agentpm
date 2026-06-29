@@ -91,32 +91,46 @@ export async function handleRun(ctx: CommandContext, skillName: string) {
         continue;
       }
 
-      await new Promise<void>((resolve) => {
-        let runnerCommand = '';
-        if (script.lang === 'bash' || script.lang === 'sh') {
-          runnerCommand = `bash -c "${script.code.replace(/"/g, '\\"')}"`;
-        } else if (script.lang === 'python' || script.lang === 'py') {
-          runnerCommand = `python -c "${script.code.replace(/"/g, '\\"')}"`;
-        } else {
-          execSpinner.info(chalk.yellow(`Execution not supported for language: ${script.lang}`));
-          resolve();
-          return;
-        }
-
-        ctx.exec(runnerCommand, {}, (err, stdout, stderr) => {
-          if (err) {
-            execSpinner.fail(chalk.red('Execution failed!'));
-            ctx.io.error(chalk.red(stderr || err.message));
-          } else {
-            execSpinner.succeed(chalk.green('Execution completed.'));
-            if (stdout) {
-              ctx.io.log(chalk.gray('\nOutput:'));
-              ctx.io.log(stdout);
-            }
+      if (script.lang === 'bash' || script.lang === 'sh' || script.lang === 'python' || script.lang === 'py') {
+        const { Sandbox } = require('@e2b/code-interpreter');
+        let sandbox: any = null;
+        
+        try {
+          if (!process.env.E2B_API_KEY) {
+            execSpinner.fail(chalk.red('E2B_API_KEY environment variable is required for secure sandboxed execution.'));
+            ctx.io.log(chalk.gray('Please set E2B_API_KEY to execute bash/python scripts securely.'));
+            continue;
           }
-          resolve();
-        });
-      });
+          execSpinner.text = 'Connecting to E2B Secure Cloud Sandbox...';
+          sandbox = await Sandbox.create();
+          execSpinner.text = 'Executing script in E2B Sandbox...';
+          
+          if (script.lang === 'bash' || script.lang === 'sh') {
+            const result = await sandbox.commands.run(script.code, {
+              onStdout: (out: any) => ctx.io.log(chalk.gray(`[E2B] ${out.line}`)),
+              onStderr: (err: any) => ctx.io.error(chalk.red(`[E2B ERR] ${err.line}`))
+            });
+            if (result.error) throw new Error(result.error.message || 'Bash execution failed');
+          } else {
+            const result = await sandbox.runCode(script.code, {
+              onStdout: (out: any) => ctx.io.log(chalk.gray(`[E2B] ${out.line}`)),
+              onStderr: (err: any) => ctx.io.error(chalk.red(`[E2B ERR] ${err.line}`))
+            });
+            if (result.error) throw new Error(result.error.value || result.error.name);
+          }
+          
+          execSpinner.succeed(chalk.green('E2B Sandbox execution completed.'));
+        } catch (err: any) {
+          execSpinner.fail(chalk.red('E2B Sandbox Execution failed!'));
+          ctx.io.error(chalk.red(err.message));
+        } finally {
+          if (sandbox) {
+            await sandbox.close();
+          }
+        }
+      } else {
+        execSpinner.info(chalk.yellow(`Execution not supported for language: ${script.lang}`));
+      }
     }
 
   } catch (err) {

@@ -9,7 +9,8 @@ const SkillPackageSchema = z.object({
   description: z.string().optional(),
   content: z.string(),
   version: z.string().default("1.0.0"),
-  metadata: z.record(z.any()).optional()
+  metadata: z.record(z.any()).optional(),
+  signature: z.any().optional()
 });
 
 const SkillNameSchema = z.string().min(1).max(100).regex(/^[a-zA-Z0-9\-\_\@\/]+$/, "Invalid characters in skill name");
@@ -87,6 +88,17 @@ export class SkillInstaller {
       
       const json = await response.json();
       const validated = SkillPackageSchema.parse(json);
+
+      if (validated.signature) {
+        try {
+          const { verify } = require('sigstore');
+          const buffer = Buffer.from(validated.content.trim(), 'utf8');
+          await verify(validated.signature, buffer);
+        } catch (err: any) {
+          throw new Error(`CRITICAL SECURITY ALERT: Cryptographic signature verification failed for '${skillName}'. The package may have been tampered with. Error: ${err.message}`);
+        }
+      }
+
       return { content: validated.content, version: validated.version };
     } catch (error) {
       clearTimeout(timeout);

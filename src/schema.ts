@@ -71,6 +71,7 @@ export const SkillSchema = z.object({
   benchmarks: BenchmarkSchema,
   ratings: RatingsSchema.default({}),
   analytics: AnalyticsSchema.default({}),
+  signature: z.any().optional(),
 });
 
 export type Skill = z.infer<typeof SkillSchema>;
