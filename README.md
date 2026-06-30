@@ -52,8 +52,17 @@ $ agentpm install @oss/react-expert
 ## 🚀 Quick Start
 
 ### Installation
+
+Install globally via NPM directly from GitHub:
 ```bash
-npm install -g agentpm
+npm install -g github:amajumdar2249/agentpm
+```
+
+Or install locally from source:
+```bash
+git clone https://github.com/amajumdar2249/agentpm.git
+cd agentpm
+npm install -g .
 ```
 
 ### Command Palette

@@ -17,6 +17,7 @@
     "build": "tsc",
     "dev": "ts-node src/index.ts",
     "test": "jest --runInBand",
+    "prepare": "npm run build",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
