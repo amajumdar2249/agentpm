@@ -160,6 +160,7 @@ export class SecurityScanner {
     // Normalize to defeat unicode bypass attacks:
     // "Ignore" -> "Ignore" | "rgnore" -> "ignore" | "i g n o r e" -> "ignore"
     const normalized = content
+      .replace(/[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '') // strip zero-width chars
       .normalize('NFKD')            // decompose unicode lookalikes
       .replace(/[\p{M}]/gu, '')     // strip combining marks
       .replace(/\s+/g, ' ');        // collapse whitespace

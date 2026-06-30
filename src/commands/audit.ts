@@ -77,21 +77,17 @@ function auditFile(filePath: string, findings: AuditFinding[]) {
   }
 
   const content = fs.readFileSync(filePath, 'utf8');
-  const lines = content.split('\n');
-
-  lines.forEach((line, idx) => {
-    const result = SecurityScanner.audit(line);
-    if (!result.isSafe) {
-      result.threats.forEach(threat => {
-        findings.push({
-          filePath,
-          lineNumber: idx + 1,
-          lineContent: line,
-          message: threat
-        });
+  const result = SecurityScanner.audit(content);
+  if (!result.isSafe) {
+    result.threats.forEach(threat => {
+      findings.push({
+        filePath,
+        lineNumber: 1,
+        lineContent: content.slice(0, 100).replace(/\n/g, ' ') + '...',
+        message: threat
       });
-    }
-  });
+    });
+  }
 }
 
 function walkAndAudit(dirPath: string, findings: AuditFinding[]): number {

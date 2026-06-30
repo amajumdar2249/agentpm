@@ -4,6 +4,7 @@ import ora from 'ora';
 import { CommandContext } from '../core/factory';
 import { SecurityScanner } from '../scanner';
 import { SkillInstaller } from '../installer';
+import { toSlug } from '../utils/slug';
 
 interface ScriptBlock {
   lang: string;
@@ -11,7 +12,7 @@ interface ScriptBlock {
 }
 
 export async function handleRun(ctx: CommandContext, skillName: string) {
-  const safeName = skillName.replace(/[\/\@]/g, '-').replace(/^-/, '').replace(/\s+/g, '-');
+  const safeName = toSlug(skillName);
   let skillPath = path.join(ctx.process.cwd(), '.agents', 'skills', `${safeName}.md`);
 
   // Auto-install if not present locally

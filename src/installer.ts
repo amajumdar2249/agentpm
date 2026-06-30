@@ -2,6 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import { z } from 'zod';
 import chalk from 'chalk';
+import { verify } from 'sigstore';
+import { toSlug } from './utils/slug';
 
 const SkillPackageSchema = z.object({
   name: z.string(),
@@ -38,7 +40,7 @@ export class SkillInstaller {
       throw new Error(`Invalid skill name format: ${skillName}`);
     }
     
-    const slug = skillName.toLowerCase().replace(/[@\/]/g, '-').replace(/^-/, '').replace(/\s+/g, '-');
+    const slug = toSlug(skillName);
     const localPkgPath = path.join(this.localRegistryDir, `${slug}.json`);
 
     // 1. Try Local Registry Seeded Dataset
@@ -61,10 +63,16 @@ export class SkillInstaller {
     if (fs.existsSync(configPath)) {
       try {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        if (config.registryUrl) registryUrl = config.registryUrl.replace(/\/$/, '');
+        if (config.registryUrl) {
+          const rawUrl = config.registryUrl.replace(/\/$/, '');
+          if (!/^https:\/\//i.test(rawUrl) && !/^http:\/\/(localhost|127\.0\.0\.1)/i.test(rawUrl)) {
+            throw new Error(`Insecure registry URL rejected: ${rawUrl}. Must use HTTPS.`);
+          }
+          registryUrl = rawUrl;
+        }
         if (config.authToken) authToken = config.authToken;
       } catch (err) {
-        // ignore
+        if ((err as Error).message.includes('Insecure registry URL')) throw err;
       }
     }
 
@@ -91,7 +99,6 @@ export class SkillInstaller {
 
       if (validated.signature) {
         try {
-          const { verify } = require('sigstore');
           const buffer = Buffer.from(validated.content.trim(), 'utf8');
           await verify(validated.signature, buffer);
         } catch (err: any) {
@@ -105,13 +112,16 @@ export class SkillInstaller {
       if ((error as Error).name === 'AbortError') {
         throw new Error(`Registry connection timed out for '${skillName}'.`);
       }
+      if ((error as Error).message.includes('CRITICAL SECURITY ALERT') || (error as Error).message.includes('Insecure registry URL')) {
+        throw error;
+      }
       throw new Error(`Registry connection failed: ${(error as Error).message}`);
     }
   }
 
   public static saveSkillLocal(skillName: string, content: string, version: string = "1.0.0") {
     this.ensureDirExists();
-    const safeName = skillName.replace(/[\/\@]/g, '-').replace(/^-/, '').replace(/\s+/g, '-');
+    const safeName = toSlug(skillName);
     const targetPath = path.join(this.agentsDir, `${safeName}.md`);
     fs.writeFileSync(targetPath, content, 'utf8');
     
@@ -155,7 +165,7 @@ export class SkillInstaller {
       }
     }
 
-    const slug = skillName.toLowerCase().replace(/[@\/]/g, '-').replace(/^-/, '').replace(/\s+/g, '-');
+    const slug = toSlug(skillName);
 
     lock.skills[skillName] = {
       version,
@@ -173,7 +183,7 @@ export class SkillInstaller {
 
   // Fix 10: Uninstall skill
   public static uninstallSkill(skillName: string): boolean {
-    const safeName = skillName.replace(/[\/\@]/g, '-').replace(/^-/, '').replace(/\s+/g, '-');
+    const safeName = toSlug(skillName);
     const skillPath = path.join(this.agentsDir, `${safeName}.md`);
     
     if (!fs.existsSync(skillPath)) {

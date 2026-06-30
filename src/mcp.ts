@@ -15,6 +15,7 @@ import { SkillInstaller } from "./installer";
 import { SkillSearcher } from "./search";
 import { handleRun } from "./commands/run";
 import { defaultContext } from "./core/factory";
+import { toSlug } from "./utils/slug";
 
 export const server = new Server(
   {
@@ -125,9 +126,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         let index: any[] = [];
-        if (forceRebuild) {
+        try {
           const raw = fs.readFileSync(indexPath, "utf8");
           index = JSON.parse(raw);
+        } catch {
+          index = [];
         }
         
         const searcher = new SkillSearcher();
@@ -151,7 +154,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "install_skill": {
-        const skillName = String(args?.skillName || "").trim();
+        const skillName = String(args?.skillName || "").trim().slice(0, 100);
         
         let content: string;
         let version: string;
@@ -193,7 +196,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "run_skill": {
-        const skillName = String(args?.skillName || "").trim();
+        const skillName = String(args?.skillName || "").trim().slice(0, 100);
         
         // Setup capture buffers for logs/errors to return over MCP response
         const logs: string[] = [];
@@ -222,7 +225,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "audit_prompt": {
-        const promptText = String(args?.promptText || "");
+        const promptText = String(args?.promptText || "").slice(0, 524288); // 512KB cap
         const result = SecurityScanner.audit(promptText);
         
         return {
@@ -289,7 +292,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
   const match = uri.match(/^agentpm:\/\/skills\/content\/(.+)$/);
   if (match) {
-    const slug = match[1];
+    const slug = toSlug(match[1]);
     const skillPath = path.join(process.cwd(), ".agents", "skills", `${slug}.md`);
     
     if (!fs.existsSync(skillPath)) {
@@ -318,4 +321,13 @@ export async function startMcpServer() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("AgentPM MCP Server successfully connected over stdio.");
+
+  process.on('SIGTERM', async () => {
+    await transport.close();
+    process.exit(0);
+  });
+  process.on('SIGINT', async () => {
+    await transport.close();
+    process.exit(0);
+  });
 }

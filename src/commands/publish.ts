@@ -4,6 +4,7 @@ import ora from 'ora';
 import crypto from 'crypto';
 import { CommandContext } from '../core/factory';
 import { SkillLinter } from '../linter';
+import { toSlug } from '../utils/slug';
 
 interface YAMLMeta {
   id?: string;
@@ -66,8 +67,7 @@ export async function handlePublish(ctx: CommandContext, skillDirArg?: string) {
   }
 
   const name = meta.name || path.basename(targetDir);
-  const baseSlug = name.toLowerCase().replace(/[@\/]/g, '').replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-  const slug = meta.id ? baseSlug : baseSlug; // default slug mapping
+  const slug = meta.id ? toSlug(meta.id) : toSlug(name);
 
   const nowStr = new Date().toISOString();
   
@@ -115,6 +115,17 @@ export async function handlePublish(ctx: CommandContext, skillDirArg?: string) {
 
   parseSpinner.succeed('SKILL.md parsed and compiled successfully.');
 
+  // Validate skill structure against schema BEFORE signing (BUG-10)
+  const validateSpinner = ora('Validating compiled skill package against schema...').start();
+  const lintResult = SkillLinter.validate(packageData);
+  
+  if (!lintResult.isValid) {
+    validateSpinner.fail(chalk.red('Validation FAILED! The generated metadata does not match schema requirements.'));
+    lintResult.errors.forEach(err => ctx.io.log(chalk.red(`   - ${err}`)));
+    ctx.process.exit(1);
+  }
+  validateSpinner.succeed(chalk.green('Validation PASSED: Skill conforms to Neural Registry standards.'));
+
   const signSpinner = ora('Cryptographically signing skill content...').start();
   let signatureBundle: any = null;
   try {
@@ -125,21 +136,9 @@ export async function handlePublish(ctx: CommandContext, skillDirArg?: string) {
   } catch (err: any) {
     signSpinner.fail(chalk.red(`Failed to sign skill: ${err.message}`));
     ctx.io.log(chalk.yellow('Note: Sigstore requires authentication to issue a short-lived certificate.'));
-    // We proceed without signature if it fails, or we could exit. Let's proceed for now.
   }
 
   packageData.signature = signatureBundle;
-
-  // Validate skill structure against schema
-  const validateSpinner = ora('Validating compiled skill package against schema...').start();
-  const lintResult = SkillLinter.validate(packageData);
-  
-  if (!lintResult.isValid) {
-    validateSpinner.fail(chalk.red('Validation FAILED! The generated metadata does not match schema requirements.'));
-    lintResult.errors.forEach(err => ctx.io.log(chalk.red(`   - ${err}`)));
-    ctx.process.exit(1);
-  }
-  validateSpinner.succeed(chalk.green('Validation PASSED: Skill conforms to Neural Registry standards.'));
 
   // Save to local registry repository
   const registryDir = path.resolve(__dirname, '..', '..', 'registry');
