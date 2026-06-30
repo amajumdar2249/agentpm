@@ -4,8 +4,8 @@
   "description": "AgentPM: The Definitive Package Manager and Security Auditor for AI Agents. Securely discover, audit, and install AI skills to build the ultimate agentic ecosystem.",
   "main": "dist/index.js",
   "bin": {
-    "agentpm": "./dist/index.js",
-    "agentpmx": "./dist/agentpmx.js"
+    "agentpm": "dist/index.js",
+    "agentpmx": "dist/agentpmx.js"
   },
   "files": [
     "dist",
@@ -35,7 +35,7 @@
   "author": "amajumdar2249",
   "repository": {
     "type": "git",
-    "url": "https://github.com/amajumdar2249/agentpm.git"
+    "url": "git+https://github.com/amajumdar2249/agentpm.git"
   },
   "homepage": "https://github.com/amajumdar2249/agentpm",
   "license": "MIT",
