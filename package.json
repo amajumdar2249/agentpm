@@ -1,6 +1,6 @@
 {
   "name": "@amajumdar2249/agentpm",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "AgentPM: The Definitive Package Manager and Security Auditor for AI Agents. Securely discover, audit, and install AI skills to build the ultimate agentic ecosystem.",
   "main": "dist/index.js",
   "bin": {

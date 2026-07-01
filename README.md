@@ -58,6 +58,12 @@ Install globally directly from the official NPM Registry:
 npm install -g @amajumdar2249/agentpm
 ```
 
+### ⚡ 1-Click AI Assistant Integration (MCP)
+Auto-configure Claude Desktop, Cursor, and Windsurf to connect directly to AgentPM:
+```bash
+agentpm setup
+```
+
 ### Command Palette
 
 ```bash

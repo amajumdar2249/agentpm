@@ -19,7 +19,7 @@ const ctx = defaultContext;
 program
   .name('agentpm')
   .description('AgentPM: The Neural Registry for Autonomous AI')
-  .version('1.1.0');
+  .version('1.2.0');
 
 // 1. init command
 program
@@ -101,6 +101,15 @@ program
   .action(async () => {
     const { startMcpServer } = await import('./mcp');
     await startMcpServer();
+  });
+
+program
+  .command('setup-mcp')
+  .alias('setup')
+  .description('Automatically inject AgentPM MCP server config into Claude Desktop, Cursor, and Windsurf')
+  .action(async () => {
+    const { handleSetupMcp } = await import('./commands/setup-mcp');
+    handleSetupMcp(ctx);
   });
 
 // 12. info command
