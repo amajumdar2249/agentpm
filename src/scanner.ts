@@ -9,7 +9,7 @@ import * as path from 'path';
 import { Severity, ScanFinding, ScanSummary } from './types';
 
 /** Prompt injection patterns targeting AI system instructions. */
-const PROMPT_INJECTION_PATTERNS: { regex: RegExp; label: string }[] = [
+export const PROMPT_INJECTION_PATTERNS: { regex: RegExp; label: string }[] = [
   { regex: /ignore\s+previous\s+instructions/gi, label: 'Ignore previous instructions' },
   { regex: /ignore\s+all\s+prior/gi, label: 'Ignore all prior instructions' },
   { regex: /you\s+are\s+now/gi, label: 'Identity override (you are now)' },
@@ -21,7 +21,7 @@ const PROMPT_INJECTION_PATTERNS: { regex: RegExp; label: string }[] = [
 ];
 
 /** Data exfiltration patterns designed to leak environment secrets. */
-const DATA_EXFIL_PATTERNS: { regex: RegExp; label: string }[] = [
+export const DATA_EXFIL_PATTERNS: { regex: RegExp; label: string }[] = [
   { regex: /fetch\s*\(\s*['"][^'"]*['"].*(?:file|content|secret|key|token|password)/gi, label: 'Fetch with sensitive data' },
   { regex: /https?:\/\/[^\s'"]+.*(?:readFile|readFileSync|file_contents)/gi, label: 'HTTP request with file contents' },
   { regex: /upload.*(?:credentials|secrets|keys|tokens|\.env)/gi, label: 'Upload credentials' },
@@ -30,7 +30,7 @@ const DATA_EXFIL_PATTERNS: { regex: RegExp; label: string }[] = [
 ];
 
 /** Destructive system commands. */
-const SYSTEM_OVERRIDE_PATTERNS: { regex: RegExp; label: string }[] = [
+export const SYSTEM_OVERRIDE_PATTERNS: { regex: RegExp; label: string }[] = [
   { regex: /\brm\s+-rf\b/g, label: 'Recursive delete (rm -rf)' },
   { regex: /\bformat\s+c:/gi, label: 'Format drive (format c:)' },
   { regex: /\bdrop\s+(?:table|database)\b/gi, label: 'SQL drop command' },
@@ -41,7 +41,7 @@ const SYSTEM_OVERRIDE_PATTERNS: { regex: RegExp; label: string }[] = [
 /**
  * Detects hidden instructions after large blocks of whitespace (50+ blank lines).
  */
-export function checkWhitespaceHiding(content: string, filePath: string): ScanFinding[] {
+export function checkWhitespaceHiding(content: string, filePath: string = 'skill'): ScanFinding[] {
   const findings: ScanFinding[] = [];
   const largeWhitespace = /\n{50,}/g;
   let match: RegExpExecArray | null;
@@ -69,7 +69,7 @@ export function checkWhitespaceHiding(content: string, filePath: string): ScanFi
 /**
  * Scans a single skill's text content for security vulnerabilities.
  */
-export function scanContent(content: string, filePath: string = 'memory/prompt'): ScanFinding[] {
+export function scanContent(content: string, filePath: string = 'skill'): ScanFinding[] {
   const findings: ScanFinding[] = [];
 
   // 1. Prompt Injection Checks
@@ -180,4 +180,37 @@ export function scanWorkspace(workspacePath: string): ScanSummary {
     info: allFindings.filter((f) => f.severity === Severity.INFO).length,
     findings: allFindings,
   };
+}
+
+/**
+ * SecurityScanner Class for command handlers and MCP integration.
+ */
+export class SecurityScanner {
+  public static audit(content: string): { isSafe: boolean; threats: string[]; findings: ScanFinding[] } {
+    const findings = scanContent(content);
+    const threats = findings.map(f => `[${f.severity}] ${f.title}`);
+    return {
+      isSafe: findings.length === 0,
+      threats,
+      findings
+    };
+  }
+
+  public static scan(targetPath: string): ScanSummary {
+    if (fs.existsSync(targetPath) && fs.statSync(targetPath).isDirectory()) {
+      return scanWorkspace(targetPath);
+    }
+    const content = fs.readFileSync(targetPath, 'utf-8');
+    const findings = scanContent(content, targetPath);
+    return {
+      totalFiles: 1,
+      totalFindings: findings.length,
+      critical: findings.filter(f => f.severity === Severity.CRITICAL).length,
+      high: findings.filter(f => f.severity === Severity.HIGH).length,
+      medium: findings.filter(f => f.severity === Severity.MEDIUM).length,
+      low: findings.filter(f => f.severity === Severity.LOW).length,
+      info: findings.filter(f => f.severity === Severity.INFO).length,
+      findings
+    };
+  }
 }

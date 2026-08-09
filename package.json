@@ -4,7 +4,8 @@
   "description": "The Package Manager for AI Agents. Discover, audit, and install AI skills and prompts.",
   "main": "dist/index.js",
   "bin": {
-    "agentpm": "./dist/index.js"
+    "agentpm": "./dist/index.js",
+    "agentpmx": "./dist/agentpmx.js"
   },
   "scripts": {
     "build": "tsc",
@@ -19,16 +20,28 @@
     "security",
     "claude-code",
     "cursor",
-    "windsurf"
+    "windsurf",
+    "mcp"
   ],
   "author": "Aurgho Majumdar",
   "license": "MIT",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.6.0",
     "chalk": "^4.1.2",
-    "commander": "^11.1.0"
+    "commander": "^11.1.0",
+    "ink": "^4.4.1",
+    "ink-text-input": "^5.0.1",
+    "minisearch": "^6.3.0",
+    "ora": "^5.4.1",
+    "react": "^18.2.0",
+    "sigstore": "^2.1.0",
+    "vm2": "^3.9.19",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
+    "@types/ora": "^3.2.0",
+    "@types/react": "^18.2.0",
     "typescript": "^5.3.3"
   }
 }
