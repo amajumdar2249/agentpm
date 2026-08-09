@@ -1,179 +1,183 @@
-export class SecurityScanner {
-  private static maliciousPatterns = [
-    // 1. Classic Prompt Injection & System Override
-    {
-      pattern: /ignore all previous instructions/i,
-      category: "System Prompt Override",
-      description: "Attempts to wipe the AI's core instructions."
-    },
-    {
-      pattern: /disregard (all )?previous instructions/i,
-      category: "System Prompt Override",
-      description: "Attempts to cancel active constraints."
-    },
-    {
-      pattern: /system prompt override/i,
-      category: "System Prompt Override",
-      description: "Explicit attempt to inject new core directions."
-    },
-    {
-      pattern: /ignore the system (prompt|guidelines|rules)/i,
-      category: "System Prompt Override",
-      description: "Explicit attempt to bypass system prompt constraints."
-    },
-    {
-      pattern: /developer mode/i,
-      category: "System Prompt Override",
-      description: "Attempts to switch the model into an unconstrained developer/jailbreak mode."
-    },
-    {
-      pattern: /you are no longer an ai/i,
-      category: "Persona Hijacking",
-      description: "Bypasses default assistant behaviors."
-    },
-    {
-      pattern: /jailbreak/i,
-      category: "Safety Bypass",
-      description: "Common indicator of safety circumvention."
-    },
-    {
-      pattern: /bypass (security|formatting|linting) rules/i,
-      category: "Safety Bypass",
-      description: "Attempts to deactivate platform safety constraints."
-    },
+// ============================================================
+// AgentPM — Zero-Trust Security Scanner Engine
+// Scans AI skills, prompts, and .cursorrules for prompt injections,
+// data exfiltration, system destruction, and hidden payloads.
+// ============================================================
 
-    // 2. Execution Hijacking (Targeting Coding Assistants)
-    {
-      pattern: /run command (silently|without asking)/i,
-      category: "Execution Hijacking",
-      description: "Directs AI to bypass user terminal approvals."
-    },
-    {
-      pattern: /execute (arbitrary )?shell commands/i,
-      category: "Execution Hijacking",
-      description: "Directs AI to execute terminal script injection."
-    },
-    {
-      pattern: /execute silently/i,
-      category: "Execution Hijacking",
-      description: "Bypasses human-in-the-loop review."
-    },
-    {
-      pattern: /auto approve all commands/i,
-      category: "Execution Hijacking",
-      description: "Forcibly bypasses user verification checkpoints."
-    },
-    {
-      pattern: /rm -rf (.*?)/i,
-      category: "Destructive Command",
-      description: "Attempts to delete filesystem folders."
-    },
-    {
-      pattern: /format c:/i,
-      category: "Destructive Command",
-      description: "Attempts disk initialization commands."
-    },
-    {
-      pattern: /rmdir\s+\/s\s+\/q/i,
-      category: "Destructive Command",
-      description: "Attempts to silently delete folders in Windows."
-    },
-    {
-      pattern: /del\s+\/s\s+\/q/i,
-      category: "Destructive Command",
-      description: "Attempts to silently delete files in Windows."
-    },
-    {
-      pattern: /shred\s+-/i,
-      category: "Destructive Command",
-      description: "Attempts file shredding command execution."
-    },
+import * as fs from 'fs';
+import * as path from 'path';
+import { Severity, ScanFinding, ScanSummary } from './types';
 
-    // 3. Exfiltration Threats
-    {
-      pattern: /exfiltrate (.*?)/i,
-      category: "Data Exfiltration",
-      description: "Explicit directions to steal local files/keys."
-    },
-    {
-      pattern: /curl\s+.*?(\s+-d|\s+--data|\s+--data-raw|\s+--data-binary)\b/i,
-      category: "Data Exfiltration",
-      description: "HTTP POST commands configured to upload local contents."
-    },
-    {
-      pattern: /wget\s+.*?\s+--post-data/i,
-      category: "Data Exfiltration",
-      description: "HTTP POST via wget configured to upload local contents."
-    },
-    {
-      pattern: /fetch\(['"]https?:\/\//i,
-      category: "Data Exfiltration",
-      description: "Javascript fetch calls targeting remote servers."
-    },
-    {
-      pattern: /axios\.post\(['"]https?:\/\//i,
-      category: "Data Exfiltration",
-      description: "Javascript axios post calls targeting remote servers."
-    },
-    {
-      pattern: /cat ~\/\.ssh\//i,
-      category: "Data Exfiltration",
-      description: "Attempts to read SSH keys for exfiltration."
-    },
-    {
-      pattern: /cat ~\/\.aws\//i,
-      category: "Data Exfiltration",
-      description: "Attempts to read AWS credentials for exfiltration."
-    },
-    {
-      pattern: /cat ~\/\.kube\//i,
-      category: "Data Exfiltration",
-      description: "Attempts to read Kubernetes config files."
-    },
-    {
-      pattern: /send (keys|secrets|\.env) to/i,
-      category: "Data Exfiltration",
-      description: "Directs AI to upload configuration secrets."
-    },
+/** Prompt injection patterns targeting AI system instructions. */
+const PROMPT_INJECTION_PATTERNS: { regex: RegExp; label: string }[] = [
+  { regex: /ignore\s+previous\s+instructions/gi, label: 'Ignore previous instructions' },
+  { regex: /ignore\s+all\s+prior/gi, label: 'Ignore all prior instructions' },
+  { regex: /you\s+are\s+now/gi, label: 'Identity override (you are now)' },
+  { regex: /override\s+your/gi, label: 'Override directive' },
+  { regex: /disregard\s+your/gi, label: 'Disregard directive' },
+  { regex: /forget\s+(everything|all|your)/gi, label: 'Memory wipe directive' },
+  { regex: /new\s+instructions?\s*:/gi, label: 'New instructions injection' },
+  { regex: /system\s*:\s*you\s+are/gi, label: 'System prompt override' },
+];
 
-    // 4. Repository Hijacking
-    {
-      pattern: /git\s+push\s+.*?(-f|--force)\b/i,
-      category: "Repository Hijacking",
-      description: "Force pushes to repository which can wipe remote commit history."
-    },
-    {
-      pattern: /npm\s+publish\s+.*?(-f|--force)\b/i,
-      category: "Repository Hijacking",
-      description: "Unauthorized forced package publishing."
+/** Data exfiltration patterns designed to leak environment secrets. */
+const DATA_EXFIL_PATTERNS: { regex: RegExp; label: string }[] = [
+  { regex: /fetch\s*\(\s*['"][^'"]*['"].*(?:file|content|secret|key|token|password)/gi, label: 'Fetch with sensitive data' },
+  { regex: /https?:\/\/[^\s'"]+.*(?:readFile|readFileSync|file_contents)/gi, label: 'HTTP request with file contents' },
+  { regex: /upload.*(?:credentials|secrets|keys|tokens|\.env)/gi, label: 'Upload credentials' },
+  { regex: /(?:curl|wget|fetch|http\.post)\s*.*(?:\.env|credentials|secrets)/gi, label: 'HTTP exfiltration of secrets' },
+  { regex: /base64.*(?:send|post|fetch|curl)/gi, label: 'Base64 encode and send' },
+];
+
+/** Destructive system commands. */
+const SYSTEM_OVERRIDE_PATTERNS: { regex: RegExp; label: string }[] = [
+  { regex: /\brm\s+-rf\b/g, label: 'Recursive delete (rm -rf)' },
+  { regex: /\bformat\s+c:/gi, label: 'Format drive (format c:)' },
+  { regex: /\bdrop\s+(?:table|database)\b/gi, label: 'SQL drop command' },
+  { regex: /\bshutdown\b.*(?:\/s|now|-h)/gi, label: 'System shutdown' },
+  { regex: /\bkill\s+-9\b/g, label: 'Force kill process' },
+];
+
+/**
+ * Detects hidden instructions after large blocks of whitespace (50+ blank lines).
+ */
+export function checkWhitespaceHiding(content: string, filePath: string): ScanFinding[] {
+  const findings: ScanFinding[] = [];
+  const largeWhitespace = /\n{50,}/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = largeWhitespace.exec(content)) !== null) {
+    const after = content.substring(match.index + match[0].length).trim();
+    if (after.length > 0) {
+      const upToMatch = content.substring(0, match.index);
+      const lineNumber = upToMatch.split('\n').length;
+
+      findings.push({
+        severity: Severity.HIGH,
+        title: 'Hidden Instructions After Whitespace',
+        description: 'Found content hidden after a large block of whitespace — classic prompt injection vector.',
+        filePath,
+        line: lineNumber,
+        remediation: 'Remove hidden payload or consolidate whitespace in this skill file.',
+      });
     }
+  }
+
+  return findings;
+}
+
+/**
+ * Scans a single skill's text content for security vulnerabilities.
+ */
+export function scanContent(content: string, filePath: string = 'memory/prompt'): ScanFinding[] {
+  const findings: ScanFinding[] = [];
+
+  // 1. Prompt Injection Checks
+  for (const pattern of PROMPT_INJECTION_PATTERNS) {
+    pattern.regex.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.regex.exec(content)) !== null) {
+      const upToMatch = content.substring(0, match.index);
+      const lineNumber = upToMatch.split('\n').length;
+
+      findings.push({
+        severity: Severity.CRITICAL,
+        title: `Prompt Injection — ${pattern.label}`,
+        description: 'Detected prompt injection attempt trying to override base AI directives.',
+        filePath,
+        line: lineNumber,
+        evidence: match[0],
+        remediation: 'Quarantine or remove this prompt instruction immediately.',
+      });
+    }
+  }
+
+  // 2. Data Exfiltration Checks
+  for (const pattern of DATA_EXFIL_PATTERNS) {
+    pattern.regex.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.regex.exec(content)) !== null) {
+      const upToMatch = content.substring(0, match.index);
+      const lineNumber = upToMatch.split('\n').length;
+
+      findings.push({
+        severity: Severity.CRITICAL,
+        title: `Data Exfiltration Risk — ${pattern.label}`,
+        description: 'Detected attempt to exfiltrate files or secrets to an external server.',
+        filePath,
+        line: lineNumber,
+        evidence: match[0],
+        remediation: 'Block this skill from execution to prevent credentials leakage.',
+      });
+    }
+  }
+
+  // 3. Destructive Command Checks
+  for (const pattern of SYSTEM_OVERRIDE_PATTERNS) {
+    pattern.regex.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.regex.exec(content)) !== null) {
+      const upToMatch = content.substring(0, match.index);
+      const lineNumber = upToMatch.split('\n').length;
+
+      findings.push({
+        severity: Severity.HIGH,
+        title: `Destructive System Command — ${pattern.label}`,
+        description: 'Contains dangerous system shell or database destruction command.',
+        filePath,
+        line: lineNumber,
+        evidence: match[0],
+        remediation: 'Review and remove destructive commands from skill prompt.',
+      });
+    }
+  }
+
+  // 4. Whitespace Hiding Check
+  findings.push(...checkWhitespaceHiding(content, filePath));
+
+  return findings;
+}
+
+/**
+ * Recursively scans all skill files in a project workspace.
+ */
+export function scanWorkspace(workspacePath: string): ScanSummary {
+  const targetDirs = [
+    path.join(workspacePath, '.agents', 'skills'),
+    path.join(workspacePath, '.cursor', 'rules'),
+    path.join(workspacePath, '.windsurf', 'rules'),
   ];
 
-  /**
-   * Scans the content of a skill for prompt injection and security threats.
-   * @param content The raw markdown content of the skill
-   * @returns An object detailing if the content is safe and any detected threats
-   */
-  public static audit(content: string): { isSafe: boolean; threats: string[] } {
-    const threats: string[] = [];
+  let totalFiles = 0;
+  const allFindings: ScanFinding[] = [];
 
-    // Normalize to defeat unicode bypass attacks:
-    // "Ignore" -> "Ignore" | "rgnore" -> "ignore" | "i g n o r e" -> "ignore"
-    const normalized = content
-      .replace(/[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '') // strip zero-width chars
-      .normalize('NFKD')            // decompose unicode lookalikes
-      .replace(/[\p{M}]/gu, '')     // strip combining marks
-      .replace(/\s+/g, ' ');        // collapse whitespace
+  for (const dir of targetDirs) {
+    if (!fs.existsSync(dir)) continue;
 
-    for (const rule of this.maliciousPatterns) {
-      if (rule.pattern.test(normalized)) {
-        threats.push(`[${rule.category}] Matched: "${rule.pattern.source}" - ${rule.description}`);
+    const files = fs.readdirSync(dir, { recursive: true }) as string[];
+    for (const file of files) {
+      const fullPath = path.join(dir, file.toString());
+      if (fs.statSync(fullPath).isFile() && (fullPath.endsWith('.md') || fullPath.endsWith('.txt') || fullPath.endsWith('.json'))) {
+        totalFiles++;
+        try {
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          const fileFindings = scanContent(content, fullPath);
+          allFindings.push(...fileFindings);
+        } catch {
+          // Ignore unreadable files
+        }
       }
     }
-
-    return {
-      isSafe: threats.length === 0,
-      threats
-    };
   }
+
+  return {
+    totalFiles,
+    totalFindings: allFindings.length,
+    critical: allFindings.filter((f) => f.severity === Severity.CRITICAL).length,
+    high: allFindings.filter((f) => f.severity === Severity.HIGH).length,
+    medium: allFindings.filter((f) => f.severity === Severity.MEDIUM).length,
+    low: allFindings.filter((f) => f.severity === Severity.LOW).length,
+    info: allFindings.filter((f) => f.severity === Severity.INFO).length,
+    findings: allFindings,
+  };
 }

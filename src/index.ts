@@ -1,163 +1,205 @@
 #!/usr/bin/env node
 
+// ============================================================
+// AgentPM — The Package Manager for AI Agents
+// ============================================================
+
 import { Command } from 'commander';
-import { defaultContext } from './core/factory';
-import { handleInit } from './commands/init';
-import { handleInstall } from './commands/install';
-import { handleSearch } from './commands/search';
-import { handleList } from './commands/list';
-import { handleValidate } from './commands/validate';
-import { handleRate } from './commands/rate';
-import { handleRun } from './commands/run';
-import { handleGenerate } from './commands/generate';
-import { handlePublish } from './commands/publish';
-import { handleAudit } from './commands/audit';
+import * as fs from 'fs';
+import * as path from 'path';
+import chalk from 'chalk';
+import { scanContent, scanWorkspace } from './scanner';
+import { fetchSkillContent, searchSkills, POPULAR_SKILLS } from './registry';
+import { AgentPmManifest, Severity } from './types';
 
 const program = new Command();
-const ctx = defaultContext;
 
 program
   .name('agentpm')
-  .description('AgentPM: The Neural Registry for Autonomous AI')
-  .version('1.2.0');
+  .description('Agent Package Manager - The secure package manager for AI Skills and Prompts')
+  .version('1.1.0');
 
-// 1. init command
+/**
+ * Helper to get or create the project agentpm.json manifest
+ */
+function getManifestPath(): string {
+  return path.join(process.cwd(), 'agentpm.json');
+}
+
+function loadManifest(): AgentPmManifest {
+  const p = getManifestPath();
+  if (fs.existsSync(p)) {
+    try {
+      return JSON.parse(fs.readFileSync(p, 'utf-8'));
+    } catch {
+      // Fallback
+    }
+  }
+  return {
+    name: path.basename(process.cwd()),
+    version: '1.0.0',
+    description: 'Agentic AI environment configured with AgentPM',
+    skills: {},
+  };
+}
+
+function saveManifest(manifest: AgentPmManifest) {
+  fs.writeFileSync(getManifestPath(), JSON.stringify(manifest, null, 2), 'utf-8');
+}
+
+// ------------------------------------------------------------
+// 1. INIT COMMAND
+// ------------------------------------------------------------
 program
   .command('init')
-  .description('Scaffold a new agentic workspace with an agentpm.json configuration file')
-  .action(() => handleInit(ctx));
+  .description('Initialize agentpm in the current workspace')
+  .action(() => {
+    const manifest = loadManifest();
+    saveManifest(manifest);
 
-// 2. install command
+    const skillsDir = path.join(process.cwd(), '.agents', 'skills');
+    if (!fs.existsSync(skillsDir)) {
+      fs.mkdirSync(skillsDir, { recursive: true });
+    }
+
+    console.log(chalk.green('✔ Initialized AgentPM workspace.'));
+    console.log(chalk.gray(`  Created ${chalk.white('agentpm.json')} and ${chalk.white('.agents/skills/')}`));
+  });
+
+// ------------------------------------------------------------
+// 2. INSTALL COMMAND
+// ------------------------------------------------------------
 program
   .command('install')
-  .description('Install a new agent skill')
+  .description('Download, security-audit, and install an AI skill into .agents/skills/')
   .argument('<skill>', 'Skill name or repository URL to install')
-  .action((skill) => handleInstall(ctx, skill));
+  .action(async (skillName: string) => {
+    console.log(chalk.blue(`🚀 Initializing install for skill: ${chalk.bold(skillName)}`));
+    console.log(chalk.cyan('📡 Fetching skill package from agentpm-registry...'));
 
-// 3. search command
-program
-  .command('search')
-  .description('Search for agent skills in registry using fuzzy matching')
-  .argument('<query>', 'Search term')
-  .option('-t, --tag <tag>', 'Filter results by tag')
-  .option('-n, --limit <n>', 'Max results to show', '10')
-  .option('-r, --remote', 'Search remote registry directly instead of local cache')
-  .action(async (query, options) => await handleSearch(ctx, query, options));
+    try {
+      const content = await fetchSkillContent(skillName);
 
-// 4. list command
+      console.log(chalk.yellow('🔍 Scanning for prompt injections, jailbreaks & data exfiltration...'));
+      const findings = scanContent(content, skillName);
+
+      const criticals = findings.filter((f) => f.severity === Severity.CRITICAL);
+      const highs = findings.filter((f) => f.severity === Severity.HIGH);
+
+      if (criticals.length > 0) {
+        console.log(chalk.bgRed.white.bold('\n ❌ SECURITY ALERT: MALICIOUS PROMPT BLOCKED '));
+        criticals.forEach((c) => console.log(chalk.red(`  - [${c.severity}] ${c.title} (line ${c.line})`)));
+        console.log(chalk.red.bold('\nInstallation aborted due to high security risk.\n'));
+        process.exit(1);
+      }
+
+      if (highs.length > 0) {
+        console.log(chalk.yellow('⚠ Warning: Potential risk patterns detected in prompt:'));
+        highs.forEach((h) => console.log(chalk.yellow(`  - ${h.title}`)));
+      } else {
+        console.log(chalk.green('✅ Zero-Trust Audit Passed: No malicious prompts found.'));
+      }
+
+      // Save skill file to .agents/skills/<skill-name>.md
+      const skillsDir = path.join(process.cwd(), '.agents', 'skills');
+      if (!fs.existsSync(skillsDir)) {
+        fs.mkdirSync(skillsDir, { recursive: true });
+      }
+
+      const cleanFileName = skillName.replace(/^@/, '').replace(/\//g, '-') + '.md';
+      const targetPath = path.join(skillsDir, cleanFileName);
+      fs.writeFileSync(targetPath, content, 'utf-8');
+
+      // Update agentpm.json manifest
+      const manifest = loadManifest();
+      manifest.skills[skillName] = '1.0.0';
+      saveManifest(manifest);
+
+      console.log(chalk.green.bold(`\n📦 Successfully installed ${skillName}!`));
+      console.log(chalk.gray(`  Location: .agents/skills/${cleanFileName}`));
+      console.log(chalk.gray(`  Updated:  agentpm.json\n`));
+    } catch (err: any) {
+      console.error(chalk.red(`\n✗ Installation failed: ${err.message}`));
+      process.exit(1);
+    }
+  });
+
+// ------------------------------------------------------------
+// 3. LIST COMMAND
+// ------------------------------------------------------------
 program
   .command('list')
-  .description('List installed agent skills')
-  .action(() => handleList(ctx));
+  .description('List installed agent skills in the current workspace')
+  .action(() => {
+    const manifest = loadManifest();
+    const installed = Object.entries(manifest.skills);
 
-// 5. validate command
+    console.log(chalk.cyan.bold('\n📄 Installed AI Agent Skills:\n'));
+    if (installed.length === 0) {
+      console.log(chalk.gray('  No skills installed yet. Run ') + chalk.white('agentpm install <skill>') + chalk.gray(' to get started.\n'));
+      return;
+    }
+
+    for (const [skill, version] of installed) {
+      console.log(`  ${chalk.green('✔')} ${chalk.bold(skill)} ${chalk.gray(`(v${version})`)}`);
+    }
+    console.log('');
+  });
+
+// ------------------------------------------------------------
+// 4. SEARCH COMMAND
+// ------------------------------------------------------------
 program
-  .command('validate')
-  .alias('lint')
-  .description('Validate a skill JSON file against the standardized metadata schema')
-  .argument('<filePath>', 'Path to the skill JSON file to validate')
-  .action((filePath) => handleValidate(ctx, filePath));
+  .command('search')
+  .description('Search skills from agentpm-registry')
+  .argument('<query>', 'Search query term')
+  .action(async (query: string) => {
+    console.log(chalk.cyan(`🔍 Searching registry for: "${query}"...\n`));
+    const results = await searchSkills(query);
 
-// 6. rate command
-program
-  .command('rate')
-  .description('Submit a rating and review for a skill via GitHub Issues')
-  .argument('<skillName>', 'Name or slug of the skill to rate')
-  .action((skillName) => handleRate(ctx, skillName));
+    if (results.length === 0) {
+      console.log(chalk.yellow('No skills found matching that query.\n'));
+      return;
+    }
 
-// 7. run command
-program
-  .command('run')
-  .description('Execute script blocks or print instructions from a skill playbook')
-  .argument('<skillName>', 'Name or slug of the skill to execute')
-  .action((skillName) => handleRun(ctx, skillName));
+    for (const r of results) {
+      console.log(`${chalk.green.bold(r.name)} ${chalk.gray(`(v${r.version})`)}`);
+      console.log(`  ${chalk.white(r.description)}`);
+      if (r.tags && r.tags.length > 0) {
+        console.log(`  ${chalk.dim('Tags: ' + r.tags.join(', '))}`);
+      }
+      console.log('');
+    }
+  });
 
-// 8. generate command
-program
-  .command('generate')
-  .description('Generate a new AI skill playbook using offline templates or Gemini')
-  .argument('<skillName>', 'Name of the skill to generate')
-  .argument('[prompt]', 'Goal or description of what the skill does')
-  .action((skillName, prompt) => handleGenerate(ctx, skillName, prompt));
-
-// 9. publish command
-program
-  .command('publish')
-  .description('Publish a skill from a local SKILL.md to the registry')
-  .argument('[skillDir]', 'Path to the directory containing SKILL.md')
-  .action((skillDir) => handlePublish(ctx, skillDir));
-
-// 10. audit command
+// ------------------------------------------------------------
+// 5. AUDIT COMMAND
+// ------------------------------------------------------------
 program
   .command('audit')
-  .description('Audit a skill file or directory for security threats')
-  .argument('[path]', 'Path to file or directory. Defaults to .agents/skills')
-  .action((path) => handleAudit(ctx, path || '.agents/skills'));
+  .description('Audit all local workspace skills and prompts for prompt injections')
+  .action(() => {
+    console.log(chalk.cyan('\n🛡️  Auditing workspace AI skills and prompts for security risks...\n'));
+    const summary = scanWorkspace(process.cwd());
 
-// 11. mcp command
-program
-  .command('mcp')
-  .description('Start the Model Context Protocol (MCP) server over stdio')
-  .action(async () => {
-    const { startMcpServer } = await import('./mcp');
-    await startMcpServer();
+    console.log(chalk.gray(`Scanned ${summary.totalFiles} skill file(s).`));
+
+    if (summary.totalFindings === 0) {
+      console.log(chalk.green.bold('✔ 0 Security vulnerabilities found. Workspace is secure!\n'));
+      return;
+    }
+
+    console.log(chalk.yellow.bold(`\n⚠ Found ${summary.totalFindings} potential risk(s):\n`));
+    for (const f of summary.findings) {
+      const color = f.severity === Severity.CRITICAL ? chalk.red.bold : chalk.yellow;
+      console.log(color(`[${f.severity}] ${f.title}`));
+      console.log(chalk.gray(`  File: ${f.filePath}${f.line ? `:${f.line}` : ''}`));
+      console.log(chalk.white(`  Details: ${f.description}`));
+      if (f.evidence) {
+        console.log(chalk.dim(`  Evidence: ${f.evidence.trim().substring(0, 70)}`));
+      }
+      console.log(chalk.cyan(`  Fix: ${f.remediation}\n`));
+    }
   });
 
-program
-  .command('setup-mcp')
-  .alias('setup')
-  .description('Automatically inject AgentPM MCP server config into Claude Desktop, Cursor, and Windsurf')
-  .action(async () => {
-    const { handleSetupMcp } = await import('./commands/setup-mcp');
-    handleSetupMcp(ctx);
-  });
-
-// 12. info command
-program
-  .command('info')
-  .description('Show detailed information about a skill without installing it')
-  .argument('<skill>', 'Name of the skill to inspect')
-  .action(async (skillName) => {
-    const { handleInfo } = await import('./commands/info');
-    handleInfo(ctx, skillName);
-  });
-
-// 13. doctor command
-program
-  .command('doctor')
-  .description('Diagnose AgentPM installation and environment issues')
-  .action(async () => {
-    const { handleDoctor } = await import('./commands/doctor');
-    handleDoctor(ctx);
-  });
-
-// 14. uninstall command
-program
-  .command('uninstall')
-  .description('Remove an installed skill from your workspace')
-  .argument('<skill>', 'Name of the skill to uninstall')
-  .action(async (skillName) => {
-    const { handleUninstall } = await import('./commands/uninstall');
-    handleUninstall(ctx, skillName);
-  });
-
-// 15. update command
-program
-  .command('update')
-  .description('Update installed skills to their latest versions')
-  .argument('[skill]', 'Name of a specific skill to update (omit to update all)')
-  .action(async (skillName) => {
-    const { handleUpdate } = await import('./commands/update');
-    handleUpdate(ctx, skillName);
-  });
-
-program
-  .command('ui')
-  .description('Launch the interactive Terminal UI')
-  .argument('[query]', 'Optional initial search query')
-  .action(async (query) => {
-    const { handleUI } = await import('./commands/ui');
-    await handleUI(ctx, query);
-  });
-
-program.parse(process.argv);
+program.parse();

@@ -1,127 +1,57 @@
-# 🌌 AgentPM 
+# 📦 agentpm
 
-<div align="center">
-  <h3><b>The Definitive Package Manager for Autonomous AI Environments</b></h3>
-  <p>Securely discover, audit, and orchestrate AI skills, system prompts, and toolsets.</p>
-</div>
+> **The Package Manager for AI Agents.**
+> Securely discover, audit, and install AI skills and system prompts.
 
----
+[![Build Status](https://img.shields.io/github/actions/workflow/status/amaju/agentpm/ci.yml?branch=main&style=flat-square)](https://github.com/amaju/agentpm/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg?style=flat-square)](http://www.typescriptlang.org/)
 
-[![npm version](https://img.shields.io/npm/v/agentpm?style=for-the-badge&color=8A2BE2)](https://www.npmjs.com/package/agentpm)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge&color=00C853)](https://opensource.org/licenses/MIT)
-[![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg?style=for-the-badge)](http://www.typescriptlang.org/)
-[![Security: Sentinel](https://img.shields.io/badge/Security-Zero%20Trust-red?style=for-the-badge)](https://github.com/amajumdar2249/agentpm)
-[![Registry](https://img.shields.io/badge/Registry-19%2C854%20Skills-blueviolet?style=for-the-badge)](https://github.com/amajumdar2249/agentpm-registry)
+## ❌ The Problem
+As AI-assisted IDEs (Claude Code, Cursor, Windsurf) take over, developers are manually copy-pasting system prompts, rules, and "skills" from random gists, blogs, and repos. There is **no standard way** to manage, version, or secure your AI's custom instructions. Even worse, blindly copying prompts leads to **Prompt Injection Vulnerabilities**.
 
-## ❌ The Dark Age of Exchanging Prompts
-As AI-assisted engineering (via Claude Code, Cursor, Windsurf) accelerates, developers are reduced to manually copy-pasting system prompts, rules, and "skills" from fragmented gists and unprotected repositories. 
+## ✅ The Solution
+`agentpm` brings the `npm` experience to AI Agents. With a single command, you can install the best open-source AI skills directly into your `.agents/` or `.cursorrules` folders.
 
-There is **no standard architecture** to manage, version, or secure custom AI instructions. Even worse, blindly copying third-party prompts introduces catastrophic **Prompt Injection Vulnerabilities** into your agentic workspace.
-
-## 🌟 The Vanguard: AgentPM
-`AgentPM` brings the robust `npm` and `cargo` experience directly to AI Agents. It transforms scattered text files into a scalable, secure, and standardized ecosystem.
-
-Every skill installed via `AgentPM` is **Cryptographically Verified** via Sigstore, and passes through a **Semantic Security Filter** before executing. Any script (Bash/Python) is then run within an isolated **E2B Cloud MicroVM Sandbox**, completely protecting your local environment from prompt-injection execution payloads.
+Every skill installed via `agentpm` is **automatically audited** for prompt-injection attacks.
 
 ```bash
-# 1. Initialize an AI-ready workspace
-$ agentpm init
-
-# 2. Securely install high-quality audited skills
+# Install a high-quality React optimization skill securely
 $ agentpm install @oss/react-expert
 
 🚀 Initializing install for skill: @oss/react-expert
-🔍 Scanning deep abstraction layers for prompt injections...
-✅ Skill audited: 0 malicious signatures found.
-📦 Successfully deployed @oss/react-expert into .agents/skills/
+🔍 Scanning for prompt injections...
+✅ Skill audited: No malicious prompts found.
+📦 Successfully installed @oss/react-expert into .agents/skills/
 ```
 
-## ✨ Features
+## Features
+- **Instant Discovery**: Access the open-source registry of proven AI skills.
+- **Zero-Trust Security**: Built-in AST and heuristic scanners block malicious 'jailbreak' prompts.
+- **Cross-Platform**: Compatible with Claude Code `.agents`, Cursor `.cursorrules`, and Windsurf.
+- **Extensible**: Pure TypeScript architecture.
 
-| Feature | Description |
-|---------|-------------|
-| ⚡ **Instant Discovery** | Search 19,854+ production-grade AI skills from the [AgentPM Registry](https://github.com/amajumdar2249/agentpm-registry) |
-| 🛡️ **Absolute Security** | Containerized E2B MicroVM execution and Sigstore cryptographic signing |
-| 🏗️ **Agentic Workspaces** | `agentpm init` scaffolds `.agents` environments with structural integrity |
-| 🔍 **Security Auditor** | `agentpm audit` scans skill files for prompt injection and destructive commands |
-| 🤖 **AI Skill Generator** | `agentpm generate` creates new skills using offline templates or Gemini |
-| 📦 **Publish & Share** | `agentpm publish` contributes skills to the global registry |
-| 🖥️ **MCP Server** | `agentpm mcp` exposes tools via Model Context Protocol for AI agent integration |
-| 🌐 **Platform Agnostic** | Works with Claude Code (`.agents`), Cursor (`.cursorrules`), and Windsurf |
-
-## 🚀 Quick Start
+## 🚀 Getting Started
 
 ### Installation
-
-Install globally directly from the official NPM Registry:
 ```bash
-npm install -g @amajumdar2249/agentpm
+npm install -g agentpm
 ```
 
-### ⚡ 1-Click AI Assistant Integration (MCP)
-Auto-configure Claude Desktop, Cursor, and Windsurf to connect directly to AgentPM:
+### Usage
 ```bash
-agentpm setup
-```
-
-### Command Palette
-
-```bash
-# Scaffold an optimized agentic workspace
-agentpm init
-
-# Search the global registry (19,854+ skills)
-agentpm search "react security"
-
-# Securely install and audit a remote skill
+# Install a skill
 agentpm install <skill-name>
 
-# Audit a skill file for security threats
-agentpm audit ./path/to/skill
-
-# Generate a new skill from a prompt
-agentpm generate my-skill "Build a REST API validator"
-
-# View your orchestrated local environment
+# List installed skills
 agentpm list
 
-# Publish a skill to the registry
-agentpm publish ./my-skill/
-
-# Start the MCP server for AI agent integration
-agentpm mcp
+# Audit all local skills for vulnerabilities
+agentpm audit
 ```
-
-## 🏛️ Architecture
-
-```
-agentpm/
-├── src/
-│   ├── index.ts              # CLI entry point (Commander.js)
-│   ├── scanner.ts            # 23+ regex patterns for prompt injection detection
-│   ├── installer.ts          # Local-first, remote-fallback skill fetcher
-│   ├── search.ts             # MiniSearch-powered fuzzy search engine
-│   ├── schema.ts             # Zod-validated skill metadata schema
-│   ├── mcp.ts                # Model Context Protocol server (4 tools)
-│   └── commands/             # 10 CLI command handlers
-├── registry/                 # Embedded registry (git submodule → agentpm-registry)
-├── tests/                    # Jest test suite (8 test files)
-└── web/                      # Next.js 16 registry browser (React 19)
-```
-
-## 🔗 Ecosystem
-
-| Repository | Purpose |
-|------------|---------|
-| [agentpm](https://github.com/amajumdar2249/agentpm) | CLI tool & MCP server (this repo) |
-| [agentpm-registry](https://github.com/amajumdar2249/agentpm-registry) | Global skill registry (19,854+ skills) |
-| [devarmor](https://www.npmjs.com/package/devarmor) | AI workstation security scanner ([npm](https://www.npmjs.com/package/devarmor)) |
 
 ## 🤝 Contributing
-We welcome contributions to expand the AgentPM ecosystem. See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
-
-## 🔒 Security
-See [SECURITY.md](SECURITY.md) for our security policy and vulnerability reporting.
+We welcome contributions to expand the package manager ecosystem. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## 📄 License
-MIT License — See [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](LICENSE) for details.

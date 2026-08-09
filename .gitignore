@@ -20,8 +20,3 @@ build/
 .env
 .env.local
 coverage/
-
-# Local Dev Artifacts & Test Agents
-.agents/
-agentpm.json
-registry/
