@@ -1,5 +1,5 @@
 {
-  "name": "agentpm",
+  "name": "@amajumdar2249/agentpm",
   "version": "1.1.0",
   "description": "The Package Manager for AI Agents. Discover, audit, and install AI skills and prompts.",
   "main": "dist/index.js",
