@@ -8,7 +8,7 @@
 [![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg?style=flat-square)](http://www.typescriptlang.org/)
 
 ## ❌ The Problem
-As AI-assisted IDEs (Claude Code, Cursor, Windsurf) take over, developers are manually copy-pasting system prompts, rules, and "skills" from random gists, blogs, and repos. There is **no standard way** to manage, version, or secure your AI's custom instructions. Even worse, blindly copying prompts leads to **Prompt Injection Vulnerabilities**.
+As AI-assisted IDEs (Claude Code, Cursor, Antigravity, Codex, Windsurf) take over, developers are manually copy-pasting system prompts, rules, and "skills" from random gists, blogs, and repos. There is **no standard way** to manage, version, or secure your AI's custom instructions. Even worse, blindly copying prompts leads to **Prompt Injection Vulnerabilities**.
 
 ## ✅ The Solution
 `agentpm` brings the `npm` experience to AI Agents. With a single command, you can install the best open-source AI skills directly into your `.agents/` or `.cursorrules` folders.
