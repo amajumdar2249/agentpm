@@ -10,6 +10,7 @@ import * as path from 'path';
 import chalk from 'chalk';
 import { scanContent, scanWorkspace } from './scanner';
 import { fetchSkillContent, searchSkills, POPULAR_SKILLS } from './registry';
+import { registerSkillsShCommand } from './commands/importSkillsSh';
 import { AgentPmManifest, Severity } from './types';
 
 const program = new Command();
@@ -17,7 +18,7 @@ const program = new Command();
 program
   .name('agentpm')
   .description('Agent Package Manager - The secure package manager for AI Skills and Prompts')
-  .version('1.1.0');
+  .version('1.2.0');
 
 /**
  * Helper to get or create the project agentpm.json manifest
@@ -201,5 +202,10 @@ program
       console.log(chalk.cyan(`  Fix: ${f.remediation}\n`));
     }
   });
+
+// ------------------------------------------------------------
+// 6. IMPORT-SKILLS-SH COMMAND (Automated Ingestion Pipeline)
+// ------------------------------------------------------------
+registerSkillsShCommand(program);
 
 program.parse();
