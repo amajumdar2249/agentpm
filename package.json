@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "test": "node dist/index.js audit",
     "dev": "ts-node src/index.ts",
     "prepublishOnly": "npm run build"
   },

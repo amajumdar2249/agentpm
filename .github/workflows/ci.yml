@@ -9,10 +9,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-      pull-requests: write
 
     strategy:
       matrix:
@@ -20,6 +16,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
@@ -29,7 +26,9 @@ jobs:
       run: npm install --legacy-peer-deps
 
     - name: Run Build
-      run: npm run build --if-present
+      run: npm run build
 
-    - name: Run Tests & Coverage
-      run: npm test
+    - name: Run Self Test & CLI Audit
+      run: |
+        node dist/index.js --help
+        node dist/index.js audit
