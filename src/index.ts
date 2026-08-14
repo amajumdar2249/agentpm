@@ -9,7 +9,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import chalk from 'chalk';
 import { scanContent, scanWorkspace } from './scanner';
-import { fetchSkillContent, searchSkills, POPULAR_SKILLS } from './registry';
+import { fetchSkillContent, searchSkills, toSlug, POPULAR_SKILLS } from './registry';
 import { registerSkillsShCommand } from './commands/importSkillsSh';
 import { AgentPmManifest, Severity } from './types';
 
@@ -18,7 +18,7 @@ const program = new Command();
 program
   .name('agentpm')
   .description('Agent Package Manager - The secure package manager for AI Skills and Prompts')
-  .version('1.2.0');
+  .version('1.3.0');
 
 /**
  * Helper to get or create the project agentpm.json manifest
@@ -79,10 +79,10 @@ program
     console.log(chalk.cyan('📡 Fetching skill package from agentpm-registry...'));
 
     try {
-      const content = await fetchSkillContent(skillName);
+      const skillPkg = await fetchSkillContent(skillName);
 
       console.log(chalk.yellow('🔍 Scanning for prompt injections, jailbreaks & data exfiltration...'));
-      const findings = scanContent(content, skillName);
+      const findings = scanContent(skillPkg.content, skillName);
 
       const criticals = findings.filter((f) => f.severity === Severity.CRITICAL);
       const highs = findings.filter((f) => f.severity === Severity.HIGH);
@@ -107,16 +107,16 @@ program
         fs.mkdirSync(skillsDir, { recursive: true });
       }
 
-      const cleanFileName = skillName.replace(/^@/, '').replace(/\//g, '-') + '.md';
+      const cleanFileName = toSlug(skillName) + '.md';
       const targetPath = path.join(skillsDir, cleanFileName);
-      fs.writeFileSync(targetPath, content, 'utf-8');
+      fs.writeFileSync(targetPath, skillPkg.content, 'utf-8');
 
       // Update agentpm.json manifest
       const manifest = loadManifest();
-      manifest.skills[skillName] = '1.0.0';
+      manifest.skills[skillName] = skillPkg.version || '1.0.0';
       saveManifest(manifest);
 
-      console.log(chalk.green.bold(`\n📦 Successfully installed ${skillName}!`));
+      console.log(chalk.green.bold(`\n📦 Successfully installed ${skillName} (v${skillPkg.version})!`));
       console.log(chalk.gray(`  Location: .agents/skills/${cleanFileName}`));
       console.log(chalk.gray(`  Updated:  agentpm.json\n`));
     } catch (err: any) {

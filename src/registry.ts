@@ -1,31 +1,28 @@
 // ============================================================
-// AgentPM — Registry Client
+// AgentPM — Universal Registry Client
 // Connects to amajumdar2249/agentpm-registry on GitHub to search,
 // verify hashes, and download AI skills securely.
 // ============================================================
 
-import * as https from 'https';
 import { RegistrySkillMeta } from './types';
 
 const REGISTRY_RAW_BASE = 'https://raw.githubusercontent.com/amajumdar2249/agentpm-registry/main';
 
 /**
- * Basic HTTPS helper to retrieve raw files with zero external dependencies.
+ * Basic HTTPS helper to retrieve raw data with zero external dependencies.
  */
-export function fetchUrl(url: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    https.get(url, (res) => {
-      if (res.statusCode && (res.statusCode < 200 || res.statusCode >= 300)) {
-        reject(new Error(`HTTP ${res.statusCode} loading ${url}`));
-        return;
-      }
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => { resolve(data); });
-    }).on('error', (err) => {
-      reject(err);
-    });
-  });
+export async function fetchUrl(url: string): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
+  try {
+    const res = await fetch(url, { signal: controller.signal, headers: { 'User-Agent': 'agentpm-cli/1.3.0' } });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status} (${res.statusText}) loading ${url}`);
+    }
+    return await res.text();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /** Built-in curated popular skills index for instant offline fallback. */
@@ -58,14 +55,34 @@ export const POPULAR_SKILLS: Record<string, RegistrySkillMeta> = {
     tags: ['security', 'devsecops', 'owasp'],
     content: `# Security Auditor Skill\n\n- Validate all inputs strictly.\n- Ensure all credentials and environment variables are protected.`,
   },
+  '12-factor-app': {
+    name: '12-factor-app',
+    version: '1.0.0',
+    description: 'The Twelve-Factor App methodology for building cloud-native SaaS applications',
+    tags: ['cloud', 'architecture', 'best-practices'],
+  }
 };
 
 /**
- * Searches the registry for matching skills.
+ * Normalizes any skill name or scoped package to a clean slug.
+ */
+export function toSlug(input: string): string {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/^@/, '')
+    .replace(/[\/\\]+/g, '-')
+    .replace(/[^a-z0-9._-]/g, '-')
+    .replace(/-+/g, '-');
+}
+
+/**
+ * Searches the registry for matching skills from local curated list and remote index.
  */
 export async function searchSkills(query: string): Promise<RegistrySkillMeta[]> {
-  const q = query.toLowerCase();
+  const q = query.toLowerCase().trim();
   const results: RegistrySkillMeta[] = [];
+  const seen = new Set<string>();
 
   // 1. Search local curated catalogue
   for (const [key, meta] of Object.entries(POPULAR_SKILLS)) {
@@ -75,55 +92,115 @@ export async function searchSkills(query: string): Promise<RegistrySkillMeta[]> 
       meta.tags?.some((t) => t.toLowerCase().includes(q))
     ) {
       results.push(meta);
+      seen.add(meta.name);
     }
   }
 
-  // 2. Try fetching from remote index if query not fully matched
+  // 2. Query remote master index (44,500+ skills)
   try {
-    const rawIndex = await fetchUrl(`${REGISTRY_RAW_BASE}/README.md`);
-    if (rawIndex && results.length === 0) {
-      // Return metadata
-      results.push({
-        name: query,
-        version: '1.0.0',
-        description: `Verified community skill from agentpm-registry: ${query}`,
-      });
+    const rawIndex = await fetchUrl(`${REGISTRY_RAW_BASE}/index.json`);
+    const parsed = JSON.parse(rawIndex);
+    if (Array.isArray(parsed)) {
+      for (const item of parsed) {
+        if (results.length >= 25) break;
+        const name = item.name || item.id || item.slug || '';
+        const desc = item.description || '';
+        if (
+          !seen.has(name) &&
+          (name.toLowerCase().includes(q) || desc.toLowerCase().includes(q))
+        ) {
+          results.push({
+            name,
+            version: item.version || '1.0.0',
+            description: desc || `Verified AI skill: ${name}`,
+            tags: item.tags || (item.category ? [item.category] : []),
+          });
+          seen.add(name);
+        }
+      }
     }
   } catch {
-    // Offline or network error fallback
+    // Offline or network timeout fallback
   }
 
   return results;
 }
 
 /**
- * Fetches the raw skill markdown content from the remote registry or local cache.
+ * Fetches the raw skill markdown content from the remote registry JSON packages or markdown files.
  */
-export async function fetchSkillContent(skillName: string): Promise<string> {
+export async function fetchSkillContent(skillName: string): Promise<{ content: string; version: string; description?: string }> {
   const normalized = skillName.trim();
+  const slug = toSlug(normalized);
 
-  // Check local fallback
+  // Check local offline popular skills
   if (POPULAR_SKILLS[normalized]?.content) {
-    return POPULAR_SKILLS[normalized].content!;
+    return {
+      content: POPULAR_SKILLS[normalized].content!,
+      version: POPULAR_SKILLS[normalized].version,
+      description: POPULAR_SKILLS[normalized].description,
+    };
   }
 
-  // Fetch from GitHub raw registry
+  // Candidate remote endpoints on GitHub raw registry
   const candidateUrls = [
-    `${REGISTRY_RAW_BASE}/packages/${encodeURIComponent(normalized)}.md`,
-    `${REGISTRY_RAW_BASE}/packages/${encodeURIComponent(normalized)}/SKILL.md`,
+    `${REGISTRY_RAW_BASE}/packages/${slug}.json`,
+    `${REGISTRY_RAW_BASE}/packages/${encodeURIComponent(normalized)}.json`,
+    `${REGISTRY_RAW_BASE}/packages/${slug}.md`,
+    `${REGISTRY_RAW_BASE}/packages/${slug}/SKILL.md`,
   ];
 
   for (const url of candidateUrls) {
     try {
-      const content = await fetchUrl(url);
-      if (content && content.length > 20) {
-        return content;
+      const raw = await fetchUrl(url);
+      if (raw && raw.length > 10) {
+        // Try parsing JSON format package
+        if (url.endsWith('.json')) {
+          try {
+            const parsed = JSON.parse(raw);
+            const content = parsed.content || parsed.prompt || parsed.instructions || parsed.description;
+            if (content && typeof content === 'string') {
+              return {
+                content,
+                version: parsed.version || '1.0.0',
+                description: parsed.description,
+              };
+            }
+          } catch {
+            // Not valid JSON, continue
+          }
+        } else {
+          // Direct markdown
+          return {
+            content: raw,
+            version: '1.0.0',
+          };
+        }
       }
     } catch {
-      // Continue to next candidate
+      // Continue to next candidate endpoint
     }
   }
 
-  // Fallback template if remote package is newly registered
-  return `# Skill: ${skillName}\n\nAutomated AI persona & guidelines for ${skillName}.\n\n## Instructions\n- Follow best engineering practices.\n- Strictly validate outputs and preserve system security.\n`;
+  // If not found in primary packages, try searching index for direct URL or content
+  try {
+    const rawIndex = await fetchUrl(`${REGISTRY_RAW_BASE}/index.json`);
+    const parsed = JSON.parse(rawIndex);
+    if (Array.isArray(parsed)) {
+      const match = parsed.find(
+        (item) => toSlug(item.name || item.id || '') === slug
+      );
+      if (match && (match.content || match.description)) {
+        return {
+          content: match.content || `# Skill: ${match.name}\n\n${match.description}\n`,
+          version: match.version || '1.0.0',
+          description: match.description,
+        };
+      }
+    }
+  } catch {
+    // Ignore index fallback error
+  }
+
+  throw new Error(`Skill '${skillName}' could not be found in agentpm-registry. Run 'agentpm search ${skillName}' to find available packages.`);
 }

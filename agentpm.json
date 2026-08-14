@@ -1,0 +1,8 @@
+{
+  "name": "agentpm",
+  "version": "1.0.0",
+  "description": "Agentic AI environment configured with AgentPM",
+  "skills": {
+    "12-factor-app": "1.0.0"
+  }
+}
