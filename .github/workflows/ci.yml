@@ -25,10 +25,10 @@ jobs:
     - name: Install dependencies
       run: npm install --legacy-peer-deps
 
-    - name: Run Build
+    - name: Run Monorepo Build
       run: npm run build
 
     - name: Run Self Test & CLI Audit
       run: |
-        node dist/index.js --help
-        node dist/index.js audit
+        node packages/cli/dist/index.js --help
+        node packages/cli/dist/index.js audit
