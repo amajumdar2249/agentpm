@@ -4,6 +4,8 @@
 // verify hashes, and download AI skills securely.
 // ============================================================
 
+import * as fs from 'fs';
+import * as path from 'path';
 import { RegistrySkillMeta } from './types';
 
 const REGISTRY_RAW_BASE = 'https://raw.githubusercontent.com/amajumdar2249/agentpm-registry/main';
@@ -96,38 +98,69 @@ export async function searchSkills(query: string): Promise<RegistrySkillMeta[]> 
     }
   }
 
-  // 2. Query remote master index (44,500+ skills)
-  try {
-    const rawIndex = await fetchUrl(`${REGISTRY_RAW_BASE}/index.json`);
-    const parsed = JSON.parse(rawIndex);
-    if (Array.isArray(parsed)) {
-      for (const item of parsed) {
-        if (results.length >= 25) break;
-        const name = item.name || item.id || item.slug || '';
-        const desc = item.description || '';
-        if (
-          !seen.has(name) &&
-          (name.toLowerCase().includes(q) || desc.toLowerCase().includes(q))
-        ) {
-          results.push({
-            name,
-            version: item.version || '1.0.0',
-            description: desc || `Verified AI skill: ${name}`,
-            tags: item.tags || (item.category ? [item.category] : []),
-          });
-          seen.add(name);
+  // 2. Search Monorepo Local Registry Workspace if present
+  const monorepoIndex = path.resolve(__dirname, '..', '..', 'registry', 'index.json');
+  if (fs.existsSync(monorepoIndex)) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(monorepoIndex, 'utf-8'));
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          if (results.length >= 25) break;
+          const name = item.name || item.id || item.slug || '';
+          const desc = item.description || '';
+          if (
+            !seen.has(name) &&
+            (name.toLowerCase().includes(q) || desc.toLowerCase().includes(q))
+          ) {
+            results.push({
+              name,
+              version: item.version || '1.0.0',
+              description: desc || `Verified AI skill: ${name}`,
+              tags: item.tags || (item.category ? [item.category] : []),
+            });
+            seen.add(name);
+          }
         }
       }
+    } catch {
+      // Ignore local read error
     }
-  } catch {
-    // Offline or network timeout fallback
+  }
+
+  // 3. Query remote master index (44,500+ skills) if not found locally
+  if (results.length < 5) {
+    try {
+      const rawIndex = await fetchUrl(`${REGISTRY_RAW_BASE}/index.json`);
+      const parsed = JSON.parse(rawIndex);
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          if (results.length >= 25) break;
+          const name = item.name || item.id || item.slug || '';
+          const desc = item.description || '';
+          if (
+            !seen.has(name) &&
+            (name.toLowerCase().includes(q) || desc.toLowerCase().includes(q))
+          ) {
+            results.push({
+              name,
+              version: item.version || '1.0.0',
+              description: desc || `Verified AI skill: ${name}`,
+              tags: item.tags || (item.category ? [item.category] : []),
+            });
+            seen.add(name);
+          }
+        }
+      }
+    } catch {
+      // Offline or network timeout fallback
+    }
   }
 
   return results;
 }
 
 /**
- * Fetches the raw skill markdown content from the remote registry JSON packages or markdown files.
+ * Fetches the raw skill markdown content from local monorepo registry or remote registry.
  */
 export async function fetchSkillContent(skillName: string): Promise<{ content: string; version: string; description?: string }> {
   const normalized = skillName.trim();
@@ -142,6 +175,24 @@ export async function fetchSkillContent(skillName: string): Promise<{ content: s
     };
   }
 
+  // Check Local Monorepo Registry Package
+  const localPkgPath = path.resolve(__dirname, '..', '..', 'registry', 'packages', `${slug}.json`);
+  if (fs.existsSync(localPkgPath)) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(localPkgPath, 'utf-8'));
+      const content = parsed.content || parsed.prompt || parsed.instructions;
+      if (content && typeof content === 'string') {
+        return {
+          content,
+          version: parsed.version || '1.0.0',
+          description: parsed.description,
+        };
+      }
+    } catch {
+      // Fall through to remote candidate urls
+    }
+  }
+
   // Candidate remote endpoints on GitHub raw registry
   const candidateUrls = [
     `${REGISTRY_RAW_BASE}/packages/${slug}.json`,
@@ -154,7 +205,6 @@ export async function fetchSkillContent(skillName: string): Promise<{ content: s
     try {
       const raw = await fetchUrl(url);
       if (raw && raw.length > 10) {
-        // Try parsing JSON format package
         if (url.endsWith('.json')) {
           try {
             const parsed = JSON.parse(raw);
@@ -167,10 +217,9 @@ export async function fetchSkillContent(skillName: string): Promise<{ content: s
               };
             }
           } catch {
-            // Not valid JSON, continue
+            // Not valid JSON
           }
         } else {
-          // Direct markdown
           return {
             content: raw,
             version: '1.0.0',
@@ -180,26 +229,6 @@ export async function fetchSkillContent(skillName: string): Promise<{ content: s
     } catch {
       // Continue to next candidate endpoint
     }
-  }
-
-  // If not found in primary packages, try searching index for direct URL or content
-  try {
-    const rawIndex = await fetchUrl(`${REGISTRY_RAW_BASE}/index.json`);
-    const parsed = JSON.parse(rawIndex);
-    if (Array.isArray(parsed)) {
-      const match = parsed.find(
-        (item) => toSlug(item.name || item.id || '') === slug
-      );
-      if (match && (match.content || match.description)) {
-        return {
-          content: match.content || `# Skill: ${match.name}\n\n${match.description}\n`,
-          version: match.version || '1.0.0',
-          description: match.description,
-        };
-      }
-    }
-  } catch {
-    // Ignore index fallback error
   }
 
   throw new Error(`Skill '${skillName}' could not be found in agentpm-registry. Run 'agentpm search ${skillName}' to find available packages.`);

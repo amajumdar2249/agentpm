@@ -1,0 +1,15 @@
+{
+  "name": "@amajumdar2249/agentpm-registry",
+  "version": "1.3.0",
+  "description": "The Official Package Registry for AgentPM — Hosting 44,500+ AI skills, prompts, and tools.",
+  "main": "index.json",
+  "keywords": [
+    "ai",
+    "agents",
+    "registry",
+    "agentpm",
+    "skills"
+  ],
+  "author": "Aurgho Majumdar",
+  "license": "MIT"
+}
